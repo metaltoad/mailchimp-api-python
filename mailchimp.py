@@ -332,7 +332,7 @@ class Mailchimp(object):
         params = json.dumps(params)
         self.log('POST to %s%s.json: %s' % (ROOT, url, params))
         start = time.time()
-        r = self.session.post('%s%s.json' % (ROOT, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.0'})
+        r = self.session.post('%s%s.json' % (ROOT, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.1'})
         try:
             remote_addr = r.raw._original_response.fp._sock.getpeername() # grab the remote_addr before grabbing the text since the socket will go away
         except:
@@ -350,7 +350,7 @@ class Mailchimp(object):
         return result
 
     def cast_error(self, result):
-        '''Take a result representing an error and cast it to a specific exception if possible (use a generic mandrill.Error exception for unknown cases)'''
+        '''Take a result representing an error and cast it to a specific exception if possible (use a generic mailchimp.Error exception for unknown cases)'''
         if not 'status' in result or result['status'] != 'error' or not 'name' in result:
             raise Error('We received an unexpected error: %r' % result)
 
