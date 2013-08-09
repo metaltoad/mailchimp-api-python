@@ -3,7 +3,7 @@ import os.path
 
 setup(
     name = 'mailchimp',
-    version = '2.0.1',
+    version = '2.0.2',
     author = 'MailChimp Devs',
     author_email = 'api@mailchimp.com',
     description = 'A CLI client and Python API library for the MailChimp email platform.',
@@ -11,7 +11,6 @@ setup(
     license = 'MIT',
     keywords = 'mailchimp email api',
     url = 'https://bitbucket.org/mailchimp/mailchimp-api-python/',
-    scripts = ['scripts/mailchimp'],
     py_modules = ['mailchimp'],
     install_requires = ['requests >= 0.13.2', 'docopt == 0.4.0'],
     classifiers = [

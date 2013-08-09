@@ -332,7 +332,7 @@ class Mailchimp(object):
         params = json.dumps(params)
         self.log('POST to %s%s.json: %s' % (ROOT, url, params))
         start = time.time()
-        r = self.session.post('%s%s.json' % (ROOT, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.1'})
+        r = self.session.post('%s%s.json' % (ROOT, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.2'})
         try:
             remote_addr = r.raw._original_response.fp._sock.getpeername() # grab the remote_addr before grabbing the text since the socket will go away
         except:
@@ -723,6 +723,7 @@ class Users(object):
                name (string): a display name for the account - empty first/last names will return the username
                email (string): the email tied to the account used for passwords resets and the ilk
                role (string): the role assigned to the account
+               avatar (string): if available, the url for the login's avatar
 
         Raises:
            ValidationError:
@@ -1518,8 +1519,8 @@ grouping will automatically turn them on.
 
         Args:
            id (string): the list id to connect to. Get by calling lists()
-           emails (array): an array of up to 50 email address struct to retrieve activity information for::
-               emails.email (string): an email address
+           emails (array): an array of up to 50 email structs, each with with one of the following keys::
+               emails.email (string): an email address - for new subscribers obviously this should be used
                emails.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                emails.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
 
@@ -1567,8 +1568,8 @@ grouping will automatically turn them on.
 
         Args:
            id (string): the list id to connect to. Get by calling lists()
-           emails (array): an array of up to 50 email address struct to retrieve member information for::
-               emails.email (string): an email address
+           emails (array): an array of up to 50 email structs, each with with one of the following keys::
+               emails.email (string): an email address - for new subscribers obviously this should be used
                emails.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                emails.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
 
@@ -1873,7 +1874,7 @@ options), though performance may degrade at that point.
 
         Args:
            id (string): the list id to connect to. Get by calling lists()
-           name (string): a unique name per list for the segment - 50 byte maximum length, anything longer will throw an error
+           name (string): a unique name per list for the segment - 100 byte maximum length, anything longer will throw an error
 
         Returns:
            struct.  with a single entry:::
@@ -2469,7 +2470,7 @@ class Campaigns(object):
         """Get the list of campaigns and their details matching the specified filters
 
         Args:
-           filters (array): a hash of filters to apply to this query - all are optional:::
+           filters (struct): a struct of filters to apply to this query - all are optional:::
                filters.campaign_id (string): optional - return the campaign using a know campaign_id.  Accepts multiples separated by commas when not using exact matching.
                filters.parent_id (string): optional - return the child campaigns using a known parent campaign_id.  Accepts multiples separated by commas when not using exact matching.
                filters.list_id (string): optional - the list to send this campaign to - get lists using lists(). Accepts multiples separated by commas when not using exact matching.
@@ -2880,8 +2881,8 @@ class Vip(object):
 
         Args:
            id (string): the list id to connect to. Get by calling lists()
-           emails (array): an array of up to 50 email address structs to add::
-               emails.email (string): an email address
+           emails (array): an array of up to 50 email address structs to add, each with with one of the following keys::
+               emails.email (string): an email address - for new subscribers obviously this should be used
                emails.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                emails.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
 
@@ -2920,8 +2921,8 @@ class Vip(object):
 
         Args:
            id (string): the list id to connect to. Get by calling lists()
-           emails (array): an array of up to 50 email address structs to remove::
-               emails.email (string): an email address
+           emails (array): an array of up to 50 email address structs to remove, each with with one of the following keys::
+               emails.email (string): an email address - for new subscribers obviously this should be used
                emails.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                emails.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
 
