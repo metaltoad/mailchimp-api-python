@@ -332,7 +332,7 @@ class Mailchimp(object):
         params = json.dumps(params)
         self.log('POST to %s%s.json: %s' % (ROOT, url, params))
         start = time.time()
-        r = self.session.post('%s%s.json' % (ROOT, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.2'})
+        r = self.session.post('%s%s.json' % (ROOT, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.3'})
         try:
             remote_addr = r.raw._original_response.fp._sock.getpeername() # grab the remote_addr before grabbing the text since the socket will go away
         except:
@@ -1252,6 +1252,7 @@ though you should cap them at 5k - 10k records, depending on your experience. Th
         Raises:
            InvalidOptionsError:
            ListDoesNotExistError:
+           ListAlreadySubscribedError:
            Error: A general Mailchimp error has occurred
         """
         _params = {'id': id, 'batch': batch, 'double_optin': double_optin, 'update_existing': update_existing, 'replace_interests': replace_interests}
@@ -1840,7 +1841,7 @@ unless you're fixing data since you should probably be using default_values and/
                    data.merge_vars (array): of structs for each merge var::
                        data.merge_vars.name (string): Name of the merge field
                        data.merge_vars.req (bool): Denotes whether the field is required (true) or not (false)
-                       data.merge_vars.field_type (string): The "data type" of this merge var. One of: email, text, number, radio, dropdown, date, address, phone, url, imageurl
+                       data.merge_vars.field_type (string): The "data type" of this merge var. One of the options accepted by field_type in lists/merge-var-add
                        data.merge_vars.public (bool): Whether or not this field is visible to list subscribers
                        data.merge_vars.show (bool): Whether the list owner has this field displayed on their list dashboard
                        data.merge_vars.order (string): The order the list owner has set this field to display in
@@ -2068,6 +2069,8 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
 
         Raises:
            ListDoesNotExistError:
+           EmailNotExistsError:
+           ListAlreadySubscribedError:
            Error: A general Mailchimp error has occurred
         """
         _params = {'id': id, 'email': email, 'merge_vars': merge_vars, 'email_type': email_type, 'double_optin': double_optin, 'update_existing': update_existing, 'replace_interests': replace_interests, 'send_welcome': send_welcome}
@@ -2093,6 +2096,7 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
         Raises:
            ListDoesNotExistError:
            EmailNotExistsError:
+           ListAlreadySubscribedError:
            Error: A general Mailchimp error has occurred
         """
         _params = {'id': id, 'email': email, 'delete_member': delete_member, 'send_goodbye': send_goodbye, 'send_notify': send_notify}
@@ -2578,7 +2582,13 @@ class Campaigns(object):
            cid (string): the Campaign Id to replicate
 
         Returns:
-           struct.  the matching campaign's details - will return same data as single campaign from campaigns/list()
+           struct.  containing:::
+               is_ready (bool): whether or not you're going to be able to send this campaign
+               items (array): an array of structs explaining basically what the app's confirmation step would::
+                   items.type (string): the item type - generally success, warning, or error
+                   items.heading (string): the item's heading in the app
+                   items.details (string): the item's details from the app, sans any html tags/links
+
 
         Raises:
            CampaignDoesNotExistError:
