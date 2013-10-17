@@ -3,7 +3,7 @@ import os.path
 
 setup(
     name = 'mailchimp',
-    version = '2.0.4',
+    version = '2.0.5',
     author = 'MailChimp Devs',
     author_email = 'api@mailchimp.com',
     description = 'A CLI client and Python API library for the MailChimp email platform.',

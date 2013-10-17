@@ -332,7 +332,7 @@ class Mailchimp(object):
         params = json.dumps(params)
         self.log('POST to %s%s.json: %s' % (ROOT, url, params))
         start = time.time()
-        r = self.session.post('%s%s.json' % (ROOT, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.4'})
+        r = self.session.post('%s%s.json' % (ROOT, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.5'})
         try:
             remote_addr = r.raw._original_response.fp._sock.getpeername() # grab the remote_addr before grabbing the text since the socket will go away
         except:
@@ -406,7 +406,7 @@ class Folders(object):
         """Delete a campaign, autoresponder, or template folder. Note that this will simply make whatever was in the folder appear unfiled, no other data is removed
 
         Args:
-           fid (int): the folder id to delete - retrieve from folders()
+           fid (int): the folder id to delete - retrieve from folders/list()
            type (string): the type of folder to delete - either "campaign", "autoresponder", or "template"
 
         Returns:
@@ -428,7 +428,7 @@ class Folders(object):
 
         Returns:
            array.  structs for each folder, including:::
-               folder_id (int): Folder Id for the given folder, this can be used in the campaigns() function to filter on.
+               folder_id (int): Folder Id for the given folder, this can be used in the campaigns/list() function to filter on.
                name (string): Name of the given folder
                date_created (string): The date/time the folder was created
                type (string): The type of the folders being returned, just to make sure you know.
@@ -445,7 +445,7 @@ class Folders(object):
         """Update the name of a folder for campaigns, autoresponders, or templates
 
         Args:
-           fid (int): the folder id to update - retrieve from folders()
+           fid (int): the folder id to update - retrieve from folders/list()
            name (string): a new, unique name for the folder (max 100 bytes)
            type (string): the type of folder to update - one of "campaign", "autoresponder", or "template".
 
@@ -507,7 +507,7 @@ class Templates(object):
         """Pull details for a specific template to help support editing
 
         Args:
-           template_id (int): the template id - get from templates()
+           template_id (int): the template id - get from templates/list()
            type (string): optional the template type to load - one of 'user', 'gallery', 'base', defaults to user.
 
         Returns:
@@ -731,6 +731,25 @@ class Users(object):
         """
         _params = {}
         return self.master.call('users/logins', _params)
+
+    def profile(self, ):
+        """Retrieve the profile for the login owning the provided API Key
+
+        Returns:
+           struct.  the current user's details, including:::
+               id (int): the login id for this login
+               username (string): the username used to log in
+               name (string): a display name for the account - empty first/last names will return the username
+               email (string): the email tied to the account used for passwords resets and the ilk
+               role (string): the role assigned to the account
+               avatar (string): if available, the url for the login's avatar
+
+        Raises:
+           ValidationError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {}
+        return self.master.call('users/profile', _params)
 
 
 class Helper(object):
@@ -983,7 +1002,7 @@ string back that will explain our view on what is going on.
                total (int): total campaigns matching
                results (array): matching campaigns and snippets
                snippet (string): the matching snippet for the campaign
-               campaign (struct): the matching campaign's details - will return same data as single campaign from campaigns()
+               campaign (struct): the matching campaign's details - will return same data as single campaign from campaigns/list()
                summary (struct): if available, the matching campaign's report/summary data, other wise empty
 
         Raises:
@@ -999,17 +1018,17 @@ string back that will explain our view on what is going on.
 
         Args:
            query (string): terms to search on, <a href="http://kb.mailchimp.com/article/i-cant-find-a-recipient-on-my-list" target="_blank">just like you do in the app</a>
-           id (string): optional the list id to limit the search to. Get by calling lists()
+           id (string): optional the list id to limit the search to. Get by calling lists/list()
            offset (int): optional the paging offset to use if more than 100 records match
 
         Returns:
            struct.  An array of both exact matches and partial matches over a full search::
                exact_matches (struct): containing the total matches and current results
                total (int): total members matching
-               members (array): each entry will be struct matching the data format for a single member as returned by listMemberInfo()
+               members (array): each entry will be struct matching the data format for a single member as returned by lists/member-info()
                full_search (struct): containing the total matches and current results
                total (int): total members matching
-               members (array): each entry will be struct matching  the data format for a single member as returned by listMemberInfo()
+               members (array): each entry will be struct matching  the data format for a single member as returned by lists/member-info()
 
         Raises:
            InvalidOptionsError:
@@ -1163,7 +1182,7 @@ class Lists(object):
         """Get all email addresses that complained about a campaign sent to a list
 
         Args:
-           id (string): the list id to pull abuse reports for (can be gathered using lists())
+           id (string): the list id to pull abuse reports for (can be gathered using lists/list())
            start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
            limit (int): optional for large data sets, the number of results to return - defaults to 500, upper limit set at 1000
            since (string): optional pull only messages since this time - 24 hour format in <strong>GMT</strong>, eg "2013-12-30 20:30:00"
@@ -1172,10 +1191,10 @@ class Lists(object):
            struct.  the total of all reports and the specific reports reports this page::
                total (int): the total number of matching abuse reports
                data (array): structs for the actual data for each reports, including:::
-                   data.date (string): date/time the abuse report was received and processed
+                   data.date (string): date+time the abuse report was received and processed
                    data.email (string): the email address that reported abuse
                    data.campaign_id (string): the unique id for the campaign that report was made against
-                   data.type (string): an internal type generally specifying the orginating mail provider - may not be useful outside of filling report views
+                   data.type (string): an internal type generally specifying the originating mail provider - may not be useful outside of filling report views
 
 
         Raises:
@@ -1192,7 +1211,7 @@ class Lists(object):
         """Access up to the previous 180 days of daily detailed aggregated activity stats for a given list. Does not include AutoResponder activity.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
 
         Returns:
            array.  of structs containing daily values, each containing:
@@ -1210,7 +1229,7 @@ only run this method as a POST request, and <em>not</em> a GET request. Maximum 
 though you should cap them at 5k - 10k records, depending on your experience. These calls are also long, so be sure you increase your timeout values.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            batch (array): an array of structs for each address using the following keys:::
                batch.email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Provide multiples and we'll use the first we see in this same order.::
                    batch.email.email (string): an email address
@@ -1262,7 +1281,7 @@ though you should cap them at 5k - 10k records, depending on your experience. Th
         """Unsubscribe a batch of email addresses from a list
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            batch (array): array of structs to unsubscribe, each with one of the following keys - failing to provide anything will produce an error relating to the email address. Provide multiples and we'll use the first we see in this same order.::
                batch.email (string): an email address
                batch.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
@@ -1298,7 +1317,7 @@ though you should cap them at 5k - 10k records, depending on your experience. Th
         """Retrieve the clients that the list's subscribers have been tagged as being used based on user agents seen. Made possible by <a href="http://user-agent-string.info" target="_blank">user-agent-string.info</a>
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
 
         Returns:
            struct.  the desktop and mobile user agents in use on the list::
@@ -1332,7 +1351,7 @@ though you should cap them at 5k - 10k records, depending on your experience. Th
         """Access the Growth History by Month in aggregate or for a given list.
 
         Args:
-           id (string): optional - if provided, the list id to connect to. Get by calling lists/list. Otherwise the aggregate for the account.
+           id (string): optional - if provided, the list id to connect to. Get by calling lists/list(). Otherwise the aggregate for the account.
 
         Returns:
            array.  array of structs containing months and growth data::
@@ -1352,7 +1371,7 @@ though you should cap them at 5k - 10k records, depending on your experience. Th
         """Get the list of interest groupings for a given list, including the label, form information, and included groups for each
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            counts (bool): optional whether or not to return subscriber counts for each group. defaults to false since that slows this call down a ton for large lists.
 
         Returns:
@@ -1380,9 +1399,9 @@ though you should cap them at 5k - 10k records, depending on your experience. Th
 group will automatically turn them on.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            group_name (string): the interest group to add - group names must be unique within a grouping
-           grouping_id (int): optional The grouping to add the new group to - get using listInterestGrouping() . If not supplied, the first grouping on the list is used.
+           grouping_id (int): optional The grouping to add the new group to - get using lists/interest-groupings() . If not supplied, the first grouping on the list is used.
 
         Returns:
            struct.  with a single entry:::
@@ -1399,9 +1418,9 @@ group will automatically turn them on.
         """Delete a single Interest Group - if the last group for a list is deleted, this will also turn groups for the list off.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            group_name (string): the interest group to delete
-           grouping_id (int): The grouping to delete the group from - get using listInterestGrouping() . If not supplied, the first grouping on the list is used.
+           grouping_id (int): The grouping to delete the group from - get using lists/interest-groupings() . If not supplied, the first grouping on the list is used.
 
         Returns:
            struct.  with a single entry:::
@@ -1419,10 +1438,10 @@ group will automatically turn them on.
         """Change the name of an Interest Group
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            old_name (string): the interest group name to be changed
            new_name (string): the new interest group name to be set
-           grouping_id (int): optional The grouping to delete the group from - get using listInterestGrouping() . If not supplied, the first grouping on the list is used.
+           grouping_id (int): optional The grouping to delete the group from - get using lists/interest-groupings() . If not supplied, the first grouping on the list is used.
 
         Returns:
            struct.  with a single entry:::
@@ -1442,7 +1461,7 @@ group will automatically turn them on.
 grouping will automatically turn them on.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            name (string): the interest grouping to add - grouping names must be unique
            type (string): The type of the grouping to add - one of "checkboxes", "hidden", "dropdown", "radio"
            groups (array): The lists of initial group names to be added - at least 1 is required and the names must be unique within a grouping. If the number takes you over the 60 group limit, an error will be thrown.
@@ -1463,7 +1482,7 @@ grouping will automatically turn them on.
         """Delete an existing Interest Grouping - this will permanently delete all contained interest groups and will remove those selections from all list members
 
         Args:
-           grouping_id (int): the interest grouping id - get from listInterestGroupings()
+           grouping_id (int): the interest grouping id - get from lists/interest-groupings()
 
         Returns:
            struct.  with a single entry:::
@@ -1480,7 +1499,7 @@ grouping will automatically turn them on.
         """Update an existing Interest Grouping
 
         Args:
-           grouping_id (int): the interest grouping id - get from listInterestGroupings()
+           grouping_id (int): the interest grouping id - get from lists/interest-groupings()
            name (string): The name of the field to update - either "name" or "type". Groups within the grouping should be manipulated using the standard listInterestGroup* methods
            value (string): The new value of the field. Grouping names must be unique - only "hidden" and "checkboxes" grouping types can be converted between each other.
 
@@ -1499,7 +1518,7 @@ grouping will automatically turn them on.
         """Retrieve the locations (countries) that the list's subscribers have been tagged to based on geocoding their IP address
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
 
         Returns:
            array.  array of locations::
@@ -1519,7 +1538,7 @@ grouping will automatically turn them on.
         """Get the most recent 100 activities for particular list members (open, click, bounce, unsub, abuse, sent to, etc.)
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            emails (array): an array of up to 50 email structs, each with with one of the following keys::
                emails.email (string): an email address - for new subscribers obviously this should be used
                emails.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
@@ -1546,7 +1565,7 @@ grouping will automatically turn them on.
 
                    data.activity (array): an array of structs containing the activity, including:::
                        data.activity.action (string): The action name, one of: open, click, bounce, unsub, abuse, sent, queued, ecomm, mandrill_send, mandrill_hard_bounce, mandrill_soft_bounce, mandrill_open, mandrill_click, mandrill_spam, mandrill_unsub, mandrill_reject
-                       data.activity.timestamp (string): The date/time of the action (GMT)
+                       data.activity.timestamp (string): The date+time of the action (GMT)
                        data.activity.url (string): For click actions, the url clicked, otherwise this is empty
                        data.activity.type (string): If there's extra bounce, unsub, etc data it will show up here.
                        data.activity.campaign_id (string): The campaign id the action was related to, if it exists - otherwise empty (ie, direct unsub from list)
@@ -1568,7 +1587,7 @@ grouping will automatically turn them on.
         """Get all the information for particular members of a list
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            emails (array): an array of up to 50 email structs, each with with one of the following keys::
                emails.email (string): an email address - for new subscribers obviously this should be used
                emails.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
@@ -1602,16 +1621,16 @@ grouping will automatically turn them on.
 
                    data.status (string): The subscription status for this email address, either pending, subscribed, unsubscribed, or cleaned
                    data.ip_signup (string): IP Address this address signed up from. This may be blank if single optin is used.
-                   data.timestamp_signup (string): The date/time the double optin was initiated. This may be blank if single optin is used.
+                   data.timestamp_signup (string): The date+time the double optin was initiated. This may be blank if single optin is used.
                    data.ip_opt (string): IP Address this address opted in from.
-                   data.timestamp_opt (string): The date/time the optin completed
+                   data.timestamp_opt (string): The date+time the optin completed
                    data.member_rating (int): the rating of the subscriber. This will be 1 - 5 as described <a href="http://eepurl.com/f-2P" target="_blank">here</a>
                    data.campaign_id (string): If the user is unsubscribed and they unsubscribed from a specific campaign, that campaign_id will be listed, otherwise this is not returned.
                    data.lists (array): An array of structs for the other lists this member belongs to::
                        data.lists.id (string): the list id
                        data.lists.status (string): the members status on that list
 
-                   data.timestamp (string): The date/time this email address entered it's current status
+                   data.timestamp (string): The date+time this email address entered it's current status
                    data.info_changed (string): The last time this record was changed. If the record is old enough, this may be blank.
                    data.web_id (int): The Member id used in our web app, allows you to create a link directly to it
                    data.leid (int): The Member id used in our web app, allows you to create a link directly to it
@@ -1657,10 +1676,10 @@ grouping will automatically turn them on.
 
     def members(self, id, status='subscribed', opts=[]):
         """Get all of the list members for a list that are of a particular status and potentially matching a segment. This will cause locking, so don't run multiples at once. Are you trying to get a dump including lots of merge
-data or specific members of a list? If so, checkout the <a href="export/1.0/list.func.php">List Export API</a>
+data or specific members of a list? If so, checkout the <a href="/export/1.0/list.func.php">List Export API</a>
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            status (string): the status to get members for - one of(subscribed, unsubscribed, <a target="_blank" href="http://eepurl.com/gWOO">cleaned</a>), defaults to subscribed
            opts (struct): various options for controlling returned data::
                opts.start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
@@ -1692,16 +1711,16 @@ data or specific members of a list? If so, checkout the <a href="export/1.0/list
         """Add a new merge tag to a given list
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            tag (string): The merge tag to add, e.g. FNAME. 10 bytes max, valid characters: "A-Z 0-9 _" no spaces, dashes, etc. Some tags and prefixes are <a href="http://kb.mailchimp.com/article/i-got-a-message-saying-that-my-list-field-name-is-reserved-and-cant-be-used" target="_blank">reserved</a>
            name (string): The long description of the tag being added, used for user displays - max 50 bytes
-           options (array): optional Various options for this merge var. <em>note:</em> for historical purposes this can also take a "boolean"::
+           options (struct): optional Various options for this merge var::
                options.field_type (string): optional one of: text, number, radio, dropdown, date, address, phone, url, imageurl, zip, birthday - defaults to text
                options.req (boolean): optional indicates whether the field is required - defaults to false
                options.public (boolean): optional indicates whether the field is displayed in public - defaults to true
                options.show (boolean): optional indicates whether the field is displayed in the app's list member view - defaults to true
                options.order (int): The order this merge tag should be displayed in - this will cause existing values to be reset so this fits
-               options.default_value (string): optional the default value for the field. See subscribe() for formatting info. Defaults to blank - max 255 bytes
+               options.default_value (string): optional the default value for the field. See lists/subscribe() for formatting info. Defaults to blank - max 255 bytes
                options.helptext (string): optional the help text to be used with some newer forms. Defaults to blank - max 255 bytes
                options.choices (array): optional kind of - an array of strings to use as the choices for radio and dropdown type fields
                options.dateformat (string): optional only valid for birthday and date fields. For birthday type, must be "MM/DD" (default) or "DD/MM". For date type, must be "MM/DD/YYYY" (default) or "DD/MM/YYYY". Any other values will be converted to the default.
@@ -1719,7 +1738,7 @@ data or specific members of a list? If so, checkout the <a href="export/1.0/list
                default (string): The default value for this field
                helptext (string): The helptext for this field
                size (string): The width of the field to be used
-               tag (string): The merge tag that's used for forms and subscribe() and updateMember()
+               tag (string): The merge tag that's used for forms and lists/subscribe() and lists/update-member()
                choices (array): the options available for radio and dropdown field types
                id (int): an unchanging id for the merge var
 
@@ -1737,7 +1756,7 @@ data or specific members of a list? If so, checkout the <a href="export/1.0/list
 Note that on large lists this method may seem a bit slower than calls you typically make.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            tag (string): The merge tag to delete
 
         Returns:
@@ -1756,7 +1775,7 @@ Note that on large lists this method may seem a bit slower than calls you typica
         """Completely resets all data stored in a merge var on a list. All data is removed and this action can not be undone.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            tag (string): The merge tag to reset
 
         Returns:
@@ -1776,9 +1795,9 @@ Note that on large lists this method may seem a bit slower than calls you typica
 unless you're fixing data since you should probably be using default_values and/or conditional content. as with lists/merge-var-reset(), this can not be undone.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            tag (string): The merge tag to reset
-           value (string): The value to set - see subscribe() for formatting. Must validate to something non-empty.
+           value (string): The value to set - see lists/subscribe() for formatting. Must validate to something non-empty.
 
         Returns:
            struct.  with a single entry:::
@@ -1797,9 +1816,9 @@ unless you're fixing data since you should probably be using default_values and/
         """Update most parameters for a merge tag on a given list. You cannot currently change the merge type
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            tag (string): The merge tag to update
-           options (struct): The options to change for a merge var. See listMergeVarAdd() for valid options. "tag" and "name" may also be used here.
+           options (struct): The options to change for a merge var. See lists/merge-var-add() for valid options. "tag" and "name" may also be used here.
 
         Returns:
            struct.  the full data for the new merge var, just like merge-vars returns::
@@ -1812,7 +1831,7 @@ unless you're fixing data since you should probably be using default_values and/
                default (string): The default value for this field
                helptext (string): The helptext for this field
                size (string): The width of the field to be used
-               tag (string): The merge tag that's used for forms and subscribe() and updateMember()
+               tag (string): The merge tag that's used for forms and lists/subscribe() and lists/update-member()
                choices (array): the options available for radio and dropdown field types
                id (int): an unchanging id for the merge var
 
@@ -1829,7 +1848,7 @@ unless you're fixing data since you should probably be using default_values and/
         """Get the list of merge tags for a given list, including their name, tag, and required setting
 
         Args:
-           id (array): the list ids to retrieve merge vars for. Get by calling lists() - max of 100
+           id (array): the list ids to retrieve merge vars for. Get by calling lists/list() - max of 100
 
         Returns:
            struct.  of data and success/error counts::
@@ -1848,7 +1867,7 @@ unless you're fixing data since you should probably be using default_values and/
                        data.merge_vars.default (string): The default value the list owner has set for this field
                        data.merge_vars.helptext (string): The helptext for this field
                        data.merge_vars.size (string): The width of the field to be used
-                       data.merge_vars.tag (string): The merge tag that's used for forms and listSubscribe() and listUpdateMember()
+                       data.merge_vars.tag (string): The merge tag that's used for forms and lists/subscribe() and listUpdateMember()
                        data.merge_vars.choices (array): For radio and dropdown field types, an array of the options available
                        data.merge_vars.id (int): an unchanging id for the merge var
 
@@ -1867,6 +1886,127 @@ unless you're fixing data since you should probably be using default_values and/
         _params = {'id': id}
         return self.master.call('lists/merge-vars', _params)
 
+    def segments(self, id, type=None):
+        """Retrieve all of Segments for a list.
+
+        Args:
+           id (string): the list id to connect to. Get by calling lists/list()
+           type (string): optional, if specified should be "static" or "saved" and will limit the returned entries to that type
+
+        Returns:
+           struct.  with 2 keys:::
+               static.id (int): the id of the segment
+               created_date (string): the date+time the segment was created
+               last_update (string): the date+time the segment was last updated (add or del)
+
+        Raises:
+           ListInvalidOptionError:
+           ListDoesNotExistError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'id': id, 'type': type}
+        return self.master.call('lists/segments', _params)
+
+    def segment_add(self, id, opts):
+        """Save a segment against a list for later use. There is no limit to the number of segments which can be saved. Static Segments <strong>are not</strong> tied
+to any merge data, interest groups, etc. They essentially allow you to configure an unlimited number of custom segments which will have standard performance.
+When using proper segments, Static Segments are one of the available options for segmentation just as if you used a merge var (and they can be used with other segmentation
+options), though performance may degrade at that point. Saved Segments (called "auto-updating" in the app) are essentially just the match+conditions typically
+used.
+
+        Args:
+           id (string): the list id to connect to. Get by calling lists/list()
+           opts (struct): various options for the new segment::
+               opts.type (string): either "static" or "saved"
+               opts.name (string): a unique name per list for the segment - 100 byte maximum length, anything longer will throw an error
+               opts.segment_opts (struct): for "saved" only, the standard segment match+conditions, just like campaigns/segment-test::
+                   opts.segment_opts.match (string): "any" or "all"
+                   opts.segment_opts.conditions (array): structs for each condition, just like campaigns/segment-test
+
+
+        Returns:
+           struct.  with a single entry:::
+               id (int): the id of the new segment, otherwise an error will be thrown.
+
+        Raises:
+           ListInvalidOptionError:
+           ListDoesNotExistError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'id': id, 'opts': opts}
+        return self.master.call('lists/segment-add', _params)
+
+    def segment_del(self, id, seg_id):
+        """Delete a segment. Note that this will, of course, remove any member affiliations with any static segments deleted
+
+        Args:
+           id (string): the list id to connect to. Get by calling lists/list()
+           seg_id (int): the id of the static segment to delete - get from lists/static-segments()
+
+        Returns:
+           struct.  with a single entry:::
+               complete (bool): whether the call worked. reallistically this will always be true as errors will be thrown otherwise.
+
+        Raises:
+           ListInvalidOptionError:
+           ListDoesNotExistError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'id': id, 'seg_id': seg_id}
+        return self.master.call('lists/segment-del', _params)
+
+    def segment_test(self, list_id, options):
+        """Allows one to test their segmentation rules before creating a campaign using them - this is no different from campaigns/segment-test() and will eventually replace it.
+For the time being, the crazy segmenting condition documentation will continue to live over there.
+
+        Args:
+           list_id (string): the list to test segmentation on - get lists using lists/list()
+           options (struct): with 1 or 2 keys:::
+               options.saved_segment_id (string): a saved segment id from lists/segments() - this will take precendence, otherwise the match+conditions are required.
+               options.match (string): controls whether to use AND or OR when applying your options - expects "<strong>any</strong>" (for OR) or "<strong>all</strong>" (for AND)
+               options.conditions (array): of up to 5 structs for different criteria to apply while segmenting. Each criteria row must contain 3 keys - "<strong>field</strong>", "<strong>op</strong>", and "<strong>value</strong>" - and possibly a fourth, "<strong>extra</strong>", based on these definitions:
+
+        Returns:
+           struct.  with a single entry:::
+               total (int): The total number of subscribers matching your segmentation options
+
+        Raises:
+           ListInvalidMergeFieldError:
+           ListInvalidInterestGroupError:
+           ListDoesNotExistError:
+           InvalidOptionsError:
+           InvalidDateTimeError:
+           CampaignDoesNotExistError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'list_id': list_id, 'options': options}
+        return self.master.call('lists/segment-test', _params)
+
+    def segment_update(self, id, seg_id, opts):
+        """Update an existing segment. The list and type can not be changed.
+
+        Args:
+           id (string): the list id to connect to. Get by calling lists/list()
+           seg_id (int): the segment to updated. Get by calling lists/segments()
+           opts (struct): various options to update::
+               opts.name (string): a unique name per list for the segment - 100 byte maximum length, anything longer will throw an error
+               opts.segment_opts (struct): for "saved" only, the standard segment match+conditions, just like campaigns/segment-test::
+                   opts.segment_opts.match (struct): "any" or "all"
+                   opts.segment_opts.conditions (array): structs for each condition, just like campaigns/segment-test
+
+
+        Returns:
+           struct.  with a single entry:::
+               complete (bool): whether the call worked. reallistically this will always be true as errors will be thrown otherwise.
+
+        Raises:
+           ListInvalidOptionError:
+           ListDoesNotExistError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'id': id, 'seg_id': seg_id, 'opts': opts}
+        return self.master.call('lists/segment-update', _params)
+
     def static_segment_add(self, id, name):
         """Save a segment against a list for later use. There is no limit to the number of segments which can be saved. Static Segments <strong>are not</strong> tied
 to any merge data, interest groups, etc. They essentially allow you to configure an unlimited number of custom segments which will have standard performance.
@@ -1874,7 +2014,7 @@ When using proper segments, Static Segments are one of the available options for
 options), though performance may degrade at that point.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            name (string): a unique name per list for the segment - 100 byte maximum length, anything longer will throw an error
 
         Returns:
@@ -1893,8 +2033,8 @@ options), though performance may degrade at that point.
         """Delete a static segment. Note that this will, of course, remove any member affiliations with the segment
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
-           seg_id (int): the id of the static segment to delete - get from listStaticSegments()
+           id (string): the list id to connect to. Get by calling lists/list()
+           seg_id (int): the id of the static segment to delete - get from lists/static-segments()
 
         Returns:
            struct.  with a single entry:::
@@ -1913,14 +2053,12 @@ options), though performance may degrade at that point.
 in order to be included - this <strong>will not</strong> subscribe them to the list!
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
-           seg_id (int): the id of the static segment to modify - get from listStaticSegments()
-           batch (array): an array of structs for each address using the following keys:::
-               batch.email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Provide multiples and we'll use the first we see in this same order.::
-                   batch.email.email (string): an email address
-                   batch.email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
-                   batch.email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
-
+           id (string): the list id to connect to. Get by calling lists/list()
+           seg_id (int): the id of the static segment to modify - get from lists/static-segments()
+           batch (array): an array of structs for   each address using the following keys:::
+               batch.email (string): an email address
+               batch.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
+               batch.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
 
         Returns:
            struct.  an array with the results of the operation::
@@ -1950,14 +2088,12 @@ in order to be included - this <strong>will not</strong> subscribe them to the l
 in order to be removed - this <strong>will not</strong> unsubscribe them from the list!
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
-           seg_id (int): the id of the static segment to delete - get from listStaticSegments()
-           batch (array): an array of structs for each address using the following keys:::
-               batch.email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Provide multiples and we'll use the first we see in this same order.::
-                   batch.email.email (string): an email address
-                   batch.email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
-                   batch.email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
-
+           id (string): the list id to connect to. Get by calling lists/list()
+           seg_id (int): the id of the static segment to delete - get from lists/static-segments()
+           batch (array): an array of structs for each address using one of the following keys:::
+               batch.email (string): an email address
+               batch.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
+               batch.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
 
         Returns:
            struct.  an array with the results of the operation::
@@ -1987,8 +2123,8 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
         """Resets a static segment - removes <strong>all</strong> members from the static segment. Note: does not actually affect list member data
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
-           seg_id (int): the id of the static segment to reset  - get from listStaticSegments()
+           id (string): the list id to connect to. Get by calling lists/list()
+           seg_id (int): the id of the static segment to reset  - get from lists/static-segments()
 
         Returns:
            struct.  with a single entry:::
@@ -2007,16 +2143,16 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
         """Retrieve all of the Static Segments for a list.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
 
         Returns:
            array.  an of structs with data for each static segment::
                id (int): the id of the segment
                name (string): the name for the segment
                member_count (int): the total number of subscribed members currently in a segment
-               created_date (string): the date/time the segment was created
-               last_update (string): the date/time the segment was last updated (add or del)
-               last_reset (string): the date/time the segment was last reset (ie had all members cleared from it)
+               created_date (string): the date+time the segment was created
+               last_update (string): the date+time the segment was last updated (add or del)
+               last_reset (string): the date+time the segment was last reset (ie had all members cleared from it)
 
         Raises:
            ListInvalidOptionError:
@@ -2080,7 +2216,7 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
         """Unsubscribe the given email address from the list
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Providing multiples and will use the first we see in this same order.::
                email.email (string): an email address
                email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
@@ -2104,15 +2240,15 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
 
     def update_member(self, id, email, merge_vars, email_type='', replace_interests=True):
         """Edit the email address, merge fields, and interest groups for a list member. If you are doing a batch update on lots of users,
-consider using listBatchSubscribe() with the update_existing and possible replace_interests parameter.
+consider using lists/batch-subscribe() with the update_existing and possible replace_interests parameter.
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Providing multiples and will use the first we see in this same order.::
                email.email (string): an email address
                email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
-           merge_vars (array): array of new field values to update the member with.  See merge_vars in listSubscribe() for details.
+           merge_vars (array): array of new field values to update the member with.  See merge_vars in lists/subscribe() for details.
            email_type (string): change the email type preference for the member ("html" or "text").  Leave blank to keep the existing preference (optional)
            replace_interests (boolean): flag to determine whether we replace the interest groups with the updated groups provided, or we add the provided groups to the member's interest groups (optional, defaults to true)
 
@@ -2141,7 +2277,7 @@ consider using listBatchSubscribe() with the update_existing and possible replac
         """Add a new Webhook URL for the given list
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            url (string): a valid URL for the Webhook - it will be validated. note that a url may only exist on a list once.
            actions (struct): optional a hash of actions to fire this Webhook for::
                actions.subscribe (bool): optional as subscribes occur, defaults to true
@@ -2171,7 +2307,7 @@ consider using listBatchSubscribe() with the update_existing and possible replac
         """Delete an existing Webhook URL from a given list
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            url (string): the URL of a Webhook on this list
 
         Returns:
@@ -2190,7 +2326,7 @@ consider using listBatchSubscribe() with the update_existing and possible replac
         """Return the Webhooks configured for the given list
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
 
         Returns:
            array.  of structs for each webhook::
@@ -2227,8 +2363,8 @@ consider using listBatchSubscribe() with the update_existing and possible replac
                filters.from_name (string): optional - only lists that have a default from name matching this
                filters.from_email (string): optional - only lists that have a default from email matching this
                filters.from_subject (string): optional - only lists that have a default from email matching this
-               filters.created_before (string): optional - only show lists that were created before this date/time  - 24 hour format in <strong>GMT</strong>, eg "2013-12-30 20:30:00"
-               filters.created_after (string): optional - only show lists that were created since this date/time  - 24 hour format in <strong>GMT</strong>, eg "2013-12-30 20:30:00"
+               filters.created_before (string): optional - only show lists that were created before this date+time  - 24 hour format in <strong>GMT</strong>, eg "2013-12-30 20:30:00"
+               filters.created_after (string): optional - only show lists that were created since this date+time  - 24 hour format in <strong>GMT</strong>, eg "2013-12-30 20:30:00"
                filters.exact (boolean): optional - flag for whether to filter on exact values when filtering, or search within content for filter values - defaults to true
            start (int): optional - control paging of lists, start results at this list #, defaults to 1st page of data  (page 0)
            limit (int): optional - control paging of lists, number of lists to return with each call, defaults to 25 (max=100)
@@ -2297,7 +2433,7 @@ class Campaigns(object):
         """Get the content (both html and text) for a campaign either as it would appear in the campaign archive or as the raw, original content
 
         Args:
-           cid (string): the campaign id to get content for (can be gathered using campaign/list())
+           cid (string): the campaign id to get content for (can be gathered using campaigns/list())
            options (struct): various options to control this call::
                options.view (string): optional one of "archive" (default), "preview" (like our popup-preview) or "raw"
                options.email (struct): optional if provided, view is "archive" or "preview", the campaign's list still exists, and the requested record is subscribed to the list. the returned content will be populated with member data populated. a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Providing multiples and will use the first we see in this same order.::
@@ -2328,7 +2464,7 @@ class Campaigns(object):
         Args:
            type (string): the Campaign Type to create - one of "regular", "plaintext", "absplit", "rss", "auto"
            options (struct): a struct of the standard options for this campaign :::
-               options.list_id (string): the list to send this campaign to- get lists using lists()
+               options.list_id (string): the list to send this campaign to- get lists using lists/list()
                options.subject (string): the subject line for your campaign message
                options.from_email (string): the From: email address for your campaign message
                options.from_name (string): the From: name for your campaign message (not an email address)
@@ -2336,7 +2472,7 @@ class Campaigns(object):
                options.template_id (int): optional - use this user-created template to generate the HTML content of the campaign (takes precendence over other template options)
                options.gallery_template_id (int): optional - use a template from the public gallery to generate the HTML content of the campaign (takes precendence over base template options)
                options.base_template_id (int): optional - use this a base/start-from-scratch template to generate the HTML content of the campaign
-               options.folder_id (int): optional - automatically file the new campaign in the folder_id passed. Get using folders() - note that Campaigns and Autoresponders have separate folder setupsn
+               options.folder_id (int): optional - automatically file the new campaign in the folder_id passed. Get using folders/list() - note that Campaigns and Autoresponders have separate folder setups
                options.tracking (struct): optional - set which recipient actions will be tracked. Click tracking can not be disabled for Free accounts.::
                    options.tracking.opens (bool): whether to track opens, defaults to true
                    options.tracking.html_clicks (bool): whether to track clicks in HTML content, defaults to true
@@ -2377,7 +2513,7 @@ class Campaigns(object):
                content.url (string): to have us pull in content from a URL. Note, this will override any other content options - for lists with Email Format options, you'll need to turn on generate_text as well
                content.archive (string): to send a Base64 encoded archive file for us to import all media from. Note, this will override any other content options - for lists with Email Format options, you'll need to turn on generate_text as well
                content.archive_type (string): optional - only necessary for the "archive" option. Supported formats are: zip, tar.gz, tar.bz2, tar, tgz, tbz . If not included, we will default to zip
-           segment_opts (struct): if you wish to do Segmentation with this campaign this array should contain: see campaignSegmentTest(). It's suggested that you test your options against campaignSegmentTest().
+           segment_opts (struct): if you wish to do Segmentation with this campaign this array should contain: see campaigns/segment-test(). It's suggested that you test your options against campaigns/segment-test().
            type_opts (struct): various extra options based on the campaign type::
                type_opts.rss (struct): For RSS Campaigns this, struct should contain:::
                    type_opts.rss.url (string): the URL to pull RSS content from - it will be verified and must exist
@@ -2396,7 +2532,7 @@ class Campaigns(object):
 
 
                type_opts.absplit (struct): For A/B Split campaigns, this struct should contain:::
-                   type_opts.absplit.split_test (string): The values to segment based on. Currently, one of: "subject", "from_name", "schedule". NOTE, for "schedule", you will need to call campaignSchedule() separately!
+                   type_opts.absplit.split_test (string): The values to segment based on. Currently, one of: "subject", "from_name", "schedule". NOTE, for "schedule", you will need to call campaigns/schedule() separately!
                    type_opts.absplit.pick_winner (string): How the winner will be picked, one of: "opens" (by the open_rate), "clicks" (by the click rate), "manual" (you pick manually)
                    type_opts.absplit.wait_units (int): optional the default time unit to wait before auto-selecting a winner - use "3600" for hours, "86400" for days. Defaults to 86400.
                    type_opts.absplit.wait_time (int): optional the number of units to wait before auto-selecting a winner - defaults to 1, so if not set, a winner will be selected after 1 Day.
@@ -2477,9 +2613,9 @@ class Campaigns(object):
            filters (struct): a struct of filters to apply to this query - all are optional:::
                filters.campaign_id (string): optional - return the campaign using a know campaign_id.  Accepts multiples separated by commas when not using exact matching.
                filters.parent_id (string): optional - return the child campaigns using a known parent campaign_id.  Accepts multiples separated by commas when not using exact matching.
-               filters.list_id (string): optional - the list to send this campaign to - get lists using lists(). Accepts multiples separated by commas when not using exact matching.
-               filters.folder_id (int): optional - only show campaigns from this folder id - get folders using campaignFolders(). Accepts multiples separated by commas when not using exact matching.
-               filters.template_id (int): optional - only show campaigns using this template id - get templates using templates(). Accepts multiples separated by commas when not using exact matching.
+               filters.list_id (string): optional - the list to send this campaign to - get lists using lists/list(). Accepts multiples separated by commas when not using exact matching.
+               filters.folder_id (int): optional - only show campaigns from this folder id - get folders using folders/list(). Accepts multiples separated by commas when not using exact matching.
+               filters.template_id (int): optional - only show campaigns using this template id - get templates using templates/list(). Accepts multiples separated by commas when not using exact matching.
                filters.status (string): optional - return campaigns of a specific status - one of "sent", "save", "paused", "schedule", "sending". Accepts multiples separated by commas when not using exact matching.
                filters.type (string): optional - return campaigns of a specific type - one of "regular", "plaintext", "absplit", "rss", "auto". Accepts multiples separated by commas when not using exact matching.
                filters.from_name (string): optional - only show campaigns that have this "From Name"
@@ -2527,14 +2663,21 @@ class Campaigns(object):
                    data.timewarp (boolean): Whether or not the campaign used Timewarp
                    data.timewarp_schedule (string): The time, in GMT, that the Timewarp campaign is being sent. For A/B Split campaigns, this is blank and is instead in their schedule_a and schedule_b in the type_opts array
                    data.parent_id (string): the unique id of the parent campaign (currently only valid for rss children)
+                   data.tests_sent (string): tests sent
+                   data.tests_remain (string): test sends remaining
                    data.tracking (struct): the various tracking options used::
                        data.tracking.html_clicks (boolean): whether or not tracking for html clicks was enabled.
                        data.tracking.text_clicks (boolean): whether or not tracking for text clicks was enabled.
                        data.tracking.opens (boolean): whether or not opens tracking was enabled.
 
                    data.segment_text (string): a string marked-up with HTML explaining the segment used for the campaign in plain English
-                   data.segment_opts (array): the segment used for the campaign - can be passed to campaigns/segment-test or campaigns/create
-                   data.type_opts (struct): the type-specific options for the campaign - can be passed to campaigns/create
+                   data.segment_opts (array): the segment used for the campaign - can be passed to campaigns/segment-test or campaigns/create()
+                   data.saved_segment (struct): if a saved segment was used (match+conditions returned above):::
+                       data.saved_segment.id (struct): the saved segment id
+                       data.saved_segment.type (struct): the saved segment type
+                       data.saved_segment.name (struct): the saved segment name
+
+                   data.type_opts (struct): the type-specific options for the campaign - can be passed to campaigns/create()
                    data.comments_total (int): total number of comments left on this campaign
                    data.comments_unread (int): total number of unread comments for this campaign based on the login the apikey belongs to
                    data.summary (struct): if available, the basic aggregate stats returned by reports/summary
@@ -2686,8 +2829,9 @@ class Campaigns(object):
         """Allows one to test their segmentation rules before creating a campaign using them
 
         Args:
-           list_id (string): the list to test segmentation on - get lists using lists()
-           options (struct): with 2 keys:::
+           list_id (string): the list to test segmentation on - get lists using lists/list()
+           options (struct): with 1 or 2 keys:::
+               options.saved_segment_id (string): a saved segment id from lists/segments() - this will take precendence, otherwise the match+conditions are required.
                options.match (string): controls whether to use AND or OR when applying your options - expects "<strong>any</strong>" (for OR) or "<strong>all</strong>" (for AND)
                options.conditions (array): of up to 5 structs for different criteria to apply while segmenting. Each criteria row must contain 3 keys - "<strong>field</strong>", "<strong>op</strong>", and "<strong>value</strong>" - and possibly a fourth, "<strong>extra</strong>", based on these definitions:
 
@@ -2763,7 +2907,7 @@ class Campaigns(object):
 a campaign is using. You only want to use this if you want to allow editing template sections in your application.
 
         Args:
-           cid (string): the campaign id to get content for (can be gathered using campaigns())
+           cid (string): the campaign id to get content for (can be gathered using campaigns/list())
 
         Returns:
            struct.  content containing all content section for the campaign - section name are dependent upon the template used and thus can't be documented
@@ -2802,18 +2946,18 @@ a campaign is using. You only want to use this if you want to allow editing temp
         return self.master.call('campaigns/unschedule', _params)
 
     def update(self, cid, name, value):
-        """Update just about any setting besides type for a campaign that has <em>not</em> been sent. See campaign/create for details.
+        """Update just about any setting besides type for a campaign that has <em>not</em> been sent. See campaigns/create() for details.
 Caveats:<br/><ul class='bullets'>
 <li>If you set a new list_id, all segmentation options will be deleted and must be re-added.</li>
 <li>If you set template_id, you need to follow that up by setting it's 'content'</li>
-<li>If you set segment_opts, you should have tested your options against campaign/segment-test().</li>
+<li>If you set segment_opts, you should have tested your options against campaigns/segment-test().</li>
 <li>To clear/unset segment_opts, pass an empty string or array as the value. Various wrappers may require one or the other.</li>
 </ul>
 
         Args:
            cid (string): the Campaign Id to update
-           name (string): the parameter name ( see campaign/create ). This will be that parameter name (options, content, segment_opts) except "type_opts", which will be the name of the type - rss, auto, etc. The campaign "type" can not be changed.
-           value (array): an appropriate set of values for the parameter ( see campaign/create ). For additional parameters, this is the same value passed to them.
+           name (string): the parameter name ( see campaigns/create() ). This will be that parameter name (options, content, segment_opts) except "type_opts", which will be the name of the type - rss, auto, etc. The campaign "type" can not be changed.
+           value (array): an appropriate set of values for the parameter ( see campaigns/create() ). For additional parameters, this is the same value passed to them.
 
         Returns:
            struct.  updated campaign details and any errors::
@@ -2890,7 +3034,7 @@ class Vip(object):
         """Add VIPs (previously called Golden Monkeys)
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            emails (array): an array of up to 50 email address structs to add, each with with one of the following keys::
                emails.email (string): an email address - for new subscribers obviously this should be used
                emails.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
@@ -2930,7 +3074,7 @@ class Vip(object):
         """Remove VIPs - this does not affect list membership
 
         Args:
-           id (string): the list id to connect to. Get by calling lists()
+           id (string): the list id to connect to. Get by calling lists/list()
            emails (array): an array of up to 50 email address structs to remove, each with with one of the following keys::
                emails.email (string): an email address - for new subscribers obviously this should be used
                emails.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
@@ -2995,7 +3139,7 @@ class Reports(object):
         """Get all email addresses that complained about a given campaign
 
         Args:
-           cid (string): the campaign id to pull abuse reports for (can be gathered using campaigns())
+           cid (string): the campaign id to pull abuse reports for (can be gathered using campaigns/list())
            opts (struct): various options for controlling returned data::
                opts.start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
                opts.limit (int): optional for large data sets, the number of results to return - defaults to 25, upper limit set at 100
@@ -3027,7 +3171,7 @@ class Reports(object):
 suited for display in customized reports pages. Note: some messages will contain HTML - clean tags as necessary
 
         Args:
-           cid (string): the campaign id to pull advice text for (can be gathered using campaigns())
+           cid (string): the campaign id to pull advice text for (can be gathered using campaigns/list())
 
         Returns:
            array.  of structs for advice on the campaign's performance, each containing:::
@@ -3047,7 +3191,7 @@ suited for display in customized reports pages. Note: some messages will contain
 Messages over 30 days old are subject to being removed
 
         Args:
-           cid (string): the campaign id to pull bounces for (can be gathered using campaigns())
+           cid (string): the campaign id to pull bounces for (can be gathered using campaigns/list())
            email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Providing multiples and will use the first we see in this same order.::
                email.email (string): an email address - this is recommended for this method
                email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
@@ -3056,7 +3200,7 @@ Messages over 30 days old are subject to being removed
         Returns:
            struct.  the full bounce message for this email+campaign along with some extra data.::
                date (string): date the bounce was received and processed
-               member (struct): the member record as returned by lists/member-info
+               member (struct): the member record as returned by lists/member-info()
                message (string): the entire bounce message received
 
         Raises:
@@ -3075,7 +3219,7 @@ of data depending on how large the campaign was and how much cruft the bounce pr
 messages over 30 days old are subject to being removed
 
         Args:
-           cid (string): the campaign id to pull bounces for (can be gathered using campaigns())
+           cid (string): the campaign id to pull bounces for (can be gathered using campaigns/list())
            opts (struct): various options for controlling returned data::
                opts.start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
                opts.limit (int): optional for large data sets, the number of results to return - defaults to 25, upper limit set at 100
@@ -3086,7 +3230,7 @@ messages over 30 days old are subject to being removed
                total (int): that total number of bounce messages for the campaign
                data (array): structs containing the data for this page::
                    data.date (string): date the bounce was received and processed
-                   data.member (struct): the member record as returned by lists/member-info
+                   data.member (struct): the member record as returned by lists/member-info()
                    data.message (string): the entire bounce message received
 
 
@@ -3106,7 +3250,7 @@ messages over 30 days old are subject to being removed
         """Return the list of email addresses that clicked on a given url, and how many times they clicked
 
         Args:
-           cid (string): the campaign id to get click stats for (can be gathered using campaigns())
+           cid (string): the campaign id to get click stats for (can be gathered using campaigns/list())
            tid (int): the "tid" for the URL from reports/clicks
            opts (struct): various options for controlling returned data::
                opts.start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
@@ -3118,7 +3262,7 @@ messages over 30 days old are subject to being removed
            struct.  containing the total records matched and the specific records for this page::
                total (int): the total number of records matched
                data (array): structs for each email addresses that click the requested url::
-                   data.member (struct): the member record as returned by lists/member-info
+                   data.member (struct): the member record as returned by lists/member-info()
                    data.clicks (int): Total number of times the URL was clicked by this email address
 
 
@@ -3137,7 +3281,7 @@ messages over 30 days old are subject to being removed
         """The urls tracked and their click counts for a given campaign.
 
         Args:
-           cid (string): the campaign id to pull stats for (can be gathered using campaigns())
+           cid (string): the campaign id to pull stats for (can be gathered using campaigns/list())
 
         Returns:
            struct.  including:::
@@ -3175,10 +3319,10 @@ messages over 30 days old are subject to being removed
         return self.master.call('reports/clicks', _params)
 
     def ecomm_orders(self, cid, opts=[]):
-        """Retrieve the Ecommerce Orders tracked by campaignEcommOrderAdd()
+        """Retrieve the Ecommerce Orders tracked by ecomm/order-add()
 
         Args:
-           cid (string): the campaign id to pull orders for for (can be gathered using campaigns())
+           cid (string): the campaign id to pull orders for for (can be gathered using campaigns/list())
            opts (struct): various options for controlling returned data::
                opts.start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
                opts.limit (int): optional for large data sets, the number of results to return - defaults to 25, upper limit set at 100
@@ -3191,7 +3335,7 @@ messages over 30 days old are subject to being removed
                store_id (string): the store id generated by the plugin used to uniquely identify a store
                store_name (string): the store name collected by the plugin - often the domain name
                order_id (string): the internal order id the store tracked this order by
-               member (struct): the member record as returned by lists/member-info that received this campaign and is associated with this order
+               member (struct): the member record as returned by lists/member-info() that received this campaign and is associated with this order
                order_total (double): the order total
                tax_total (double): the total tax for the order (if collected)
                ship_total (double): the shipping total for the order (if collected)
@@ -3223,7 +3367,7 @@ messages over 30 days old are subject to being removed
         """Retrieve the eepurl stats from the web/Twitter mentions for this campaign
 
         Args:
-           cid (string): the campaign id to pull stats for (can be gathered using campaigns())
+           cid (string): the campaign id to pull stats for (can be gathered using campaigns/list())
 
         Returns:
            struct.  containing tweets, retweets, clicks, and referrer related to using the campaign's eepurl::
@@ -3272,7 +3416,7 @@ and/or get incremental results, you should use the <a href="http://apidocs.mailc
 <strong>not</strong> this, especially for large campaigns.
 
         Args:
-           cid (string): the campaign id to get stats for (can be gathered using campaigns())
+           cid (string): the campaign id to get stats for (can be gathered using campaigns/list())
            emails (array): an array of up to 50 email address struct to retrieve activity information for::
                emails.email (string): an email address
                emails.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
@@ -3296,7 +3440,7 @@ and/or get incremental results, you should use the <a href="http://apidocs.mailc
                        data.email.euid (string): the email unique id
                        data.email.leid (string): the list member's truly unique id
 
-                   data.member (struct): the member record as returned by lists/member-info
+                   data.member (struct): the member record as returned by lists/member-info()
                    data.activity (array): an array of structs containing the activity, including:::
                        data.activity.action (string): The action name - either open or click
                        data.activity.timestamp (string): The date/time of the action (GMT)
@@ -3319,7 +3463,7 @@ and/or get incremental results, you should use the <a href="http://apidocs.mailc
         """Retrieve the list of email addresses that did not open a given campaign
 
         Args:
-           cid (string): the campaign id to get no opens for (can be gathered using campaigns())
+           cid (string): the campaign id to get no opens for (can be gathered using campaigns/list())
            opts (struct): various options for controlling returned data::
                opts.start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
                opts.limit (int): optional for large data sets, the number of results to return - defaults to 25, upper limit set at 100
@@ -3327,7 +3471,7 @@ and/or get incremental results, you should use the <a href="http://apidocs.mailc
         Returns:
            struct.  a total of all matching emails and the specific emails for this page::
                total (int): the total number of members who didn't open the campaign
-               data (array): structs for each campaign member matching as returned by lists/member-info
+               data (array): structs for each campaign member matching as returned by lists/member-info()
 
         Raises:
            CampaignInvalidOptionError:
@@ -3343,7 +3487,7 @@ and/or get incremental results, you should use the <a href="http://apidocs.mailc
         """Retrieve the list of email addresses that opened a given campaign with how many times they opened
 
         Args:
-           cid (string): the campaign id to get opens for (can be gathered using campaigns())
+           cid (string): the campaign id to get opens for (can be gathered using campaigns/list())
            opts (struct): various options for controlling returned data::
                opts.start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
                opts.limit (int): optional for large data sets, the number of results to return - defaults to 25, upper limit set at 100
@@ -3351,10 +3495,10 @@ and/or get incremental results, you should use the <a href="http://apidocs.mailc
                opts.sort_dir (string): optional the direct - ASC or DESC. defaults to ASC (case insensitive)
 
         Returns:
-           array.  array containing the total records matched and the specific records for this page::
+           struct.  containing the total records matched and the specific records for this page::
                total (int): the total number of records matched
                data (array): structs for the actual opens data, including:::
-                   data.member (struct): the member record as returned by lists/member-info
+                   data.member (struct): the member record as returned by lists/member-info()
                    data.opens (int): Total number of times the campaign was opened by this email address
 
 
@@ -3370,14 +3514,14 @@ and/or get incremental results, you should use the <a href="http://apidocs.mailc
         return self.master.call('reports/opened', _params)
 
     def domain_performance(self, cid):
-        """Get the top 5 performing email domains for this campaign. Users wanting more than 5 should use campaign campaignEmailStatsAIM()
+        """Get the top 5 performing email domains for this campaign. Users wanting more than 5 should use campaign reports/member-activity()
 or campaignEmailStatsAIMAll() and generate any additional stats they require.
 
         Args:
-           cid (string): the campaign id to pull email domain performance for (can be gathered using campaigns())
+           cid (string): the campaign id to pull email domain performance for (can be gathered using campaigns/list())
 
         Returns:
-           array.  domains stricts for each email domains and their associated stats::
+           array.  domains structs for each email domains and their associated stats::
                domain (string): Domain name or special "Other" to roll-up stats past 5 domains
                total_sent (int): Total Email across all domains - this will be the same in every row
                emails (int): Number of emails sent to this domain
@@ -3404,14 +3548,14 @@ or campaignEmailStatsAIMAll() and generate any additional stats they require.
         """Retrieve the countries/regions and number of opens tracked for each. Email address are not returned.
 
         Args:
-           cid (string): the campaign id to pull bounces for (can be gathered using campaigns())
+           cid (string): the campaign id to pull bounces for (can be gathered using campaigns/list())
 
         Returns:
            array.  an array of country structs where opens occurred::
                code (string): The ISO3166 2 digit country code
                name (string): A version of the country name, if we have it
                opens (int): The total number of opens that occurred in the country
-               regions (array): struct of data for each sub-region in the country::
+               regions (array): structs of data for each sub-region in the country::
                    regions.code (string): An internal code for the region. When this is blank, it indicates we know the country, but not the region
                    regions.name (string): The name of the region, if we have one. For blank "code" values, this will be "Rest of Country"
                    regions.opens (int): The total number of opens that occurred in the country
@@ -3429,7 +3573,7 @@ or campaignEmailStatsAIMAll() and generate any additional stats they require.
         """Retrieve the Google Analytics data we've collected for this campaign. Note, requires Google Analytics Add-on to be installed and configured.
 
         Args:
-           cid (string): the campaign id to pull bounces for (can be gathered using campaigns())
+           cid (string): the campaign id to pull bounces for (can be gathered using campaigns/list())
 
         Returns:
            array.  of structs for analytics we've collected for the passed campaign.::
@@ -3461,7 +3605,7 @@ or campaignEmailStatsAIMAll() and generate any additional stats they require.
         """Get email addresses the campaign was sent to
 
         Args:
-           cid (string): the campaign id to pull members for (can be gathered using campaigns())
+           cid (string): the campaign id to pull members for (can be gathered using campaigns/list())
            opts (struct): various options for controlling returned data::
                opts.status (string): optional the status to pull - one of 'sent', 'hard' (bounce), or 'soft' (bounce). By default, all records are returned
                opts.start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
@@ -3471,7 +3615,7 @@ or campaignEmailStatsAIMAll() and generate any additional stats they require.
            struct.  a total of all matching emails and the specific emails for this page::
                total (int): the total number of members for the campaign and status
                data (array): structs for each campaign member matching::
-                   data.member (struct): the member record as returned by lists/member-info
+                   data.member (struct): the member record as returned by lists/member-info()
                    data.status (string): the status of the send - one of 'sent', 'hard', 'soft'
                    data.absplit_group (string): if this was an absplit campaign, one of 'a','b', or 'winner'
                    data.tz_group (string): if this was an timewarp campaign the timezone GMT offset the member was included in
@@ -3491,7 +3635,7 @@ or campaignEmailStatsAIMAll() and generate any additional stats they require.
         """Get the URL to a customized <a href="http://eepurl.com/gKmL" target="_blank">VIP Report</a> for the specified campaign and optionally send an email to someone with links to it. Note subsequent calls will overwrite anything already set for the same campign (eg, the password)
 
         Args:
-           cid (string): the campaign id to share a report for (can be gathered using campaigns())
+           cid (string): the campaign id to share a report for (can be gathered using campaigns/list())
            opts (array): optional various parameters which can be used to configure the shared report::
                opts.to_email (string): optional - optional, comma delimited list of email addresses to share the report with - no value means an email will not be sent
                opts.theme_id (int): optional - either a global or a user-specific theme id. Currently this needs to be pulled out of either the Share Report or Cobranding web views by grabbing the "theme" attribute from the list presented.
@@ -3518,7 +3662,7 @@ or campaignEmailStatsAIMAll() and generate any additional stats they require.
         """Retrieve relevant aggregate campaign statistics (opens, bounces, clicks, etc.)
 
         Args:
-           cid (string): the campaign id to pull stats for (can be gathered using campaigns())
+           cid (string): the campaign id to pull stats for (can be gathered using campaigns/list())
 
         Returns:
            struct.  the statistics for this campaign::
@@ -3540,6 +3684,15 @@ or campaignEmailStatsAIMAll() and generate any additional stats they require.
                unique_likes (int): total number of unique likes (Facebook)
                recipient_likes (int): total number of recipients who liked (Facebook) the campaign
                facebook_likes (int): total number of likes (Facebook) that came from Facebook
+               industry (struct): Various rates/percentages for the account's selected industry - empty otherwise. These will vary across calls, do not use them for anything important.::
+                   industry.type (string): the selected industry
+                   industry.open_rate (float): industry open rate
+                   industry.click_rate (float): industry click rate
+                   industry.bounce_rate (float): industry bounce rate
+                   industry.unopen_rate (float): industry unopen rate
+                   industry.unsub_rate (float): industry unsub rate
+                   industry.abuse_rate (float): industry abuse rate
+
                absplit (struct): If this was an absplit campaign, stats for the A and B groups will be returned - otherwise this is empty::
                    absplit.bounces_a (int): bounces for the A group
                    absplit.bounces_b (int): bounces for the B group
@@ -3590,7 +3743,7 @@ or campaignEmailStatsAIMAll() and generate any additional stats they require.
         """Get all unsubscribed email addresses for a given campaign
 
         Args:
-           cid (string): the campaign id to pull bounces for (can be gathered using campaigns())
+           cid (string): the campaign id to pull bounces for (can be gathered using campaigns/list())
            opts (struct): various options for controlling returned data::
                opts.start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
                opts.limit (int): optional for large data sets, the number of results to return - defaults to 25, upper limit set at 100
@@ -3599,7 +3752,7 @@ or campaignEmailStatsAIMAll() and generate any additional stats they require.
            struct.  a total of all unsubscribed emails and the specific members for this page::
                total (int): the total number of unsubscribes for the campaign
                data (array): structs for the email addresses that unsubscribed::
-                   data.member (string): the member that unsubscribed as returned by lists/member-info
+                   data.member (string): the member that unsubscribed as returned by lists/member-info()
                    data.reason (string): the reason collected for the unsubscribe. If populated, one of 'NORMAL','NOSIGNUP','INAPPROPRIATE','SPAM','OTHER'
                    data.reason_text (string): if the reason is OTHER, the text entered.
 
