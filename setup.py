@@ -3,11 +3,11 @@ import os.path
 
 setup(
     name = 'mailchimp',
-    version = '2.0.6',
+    version = '2.0.7',
     author = 'MailChimp Devs',
     author_email = 'api@mailchimp.com',
     description = 'A CLI client and Python API library for the MailChimp email platform.',
-    long_description = open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
+    long_description = open(os.path.join(os.path.dirname(__file__), 'README')).read(),
     license = 'MIT',
     keywords = 'mailchimp email api',
     url = 'https://bitbucket.org/mailchimp/mailchimp-api-python/',
