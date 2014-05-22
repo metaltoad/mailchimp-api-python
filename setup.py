@@ -18,6 +18,9 @@ setup(
         'Environment :: Console',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
-        'Topic :: Communications :: Email'
+        'Topic :: Communications :: Email',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 3',
     ]
 )
