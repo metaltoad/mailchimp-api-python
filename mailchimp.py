@@ -183,8 +183,19 @@ class MaxSizeReachedError(Error):
     pass
 class MCSearchExceptionError(Error):
     pass
+class GoalSaveFailedError(Error):
+    pass
+class ConversationDoesNotExistError(Error):
+    pass
+class ConversationReplySaveFailedError(Error):
+    pass
+class FileNotFoundExceptionError(Error):
+    pass
+class FolderNotFoundExceptionError(Error):
+    pass
+class FolderExistsExceptionError(Error):
+    pass
 
-ROOT = 'https://api.mailchimp.com/2.0/'
 ERROR_MAP = {
     'ValidationError': ValidationError,
     'ServerError_MethodUnknown': ServerMethodUnknownError,
@@ -272,7 +283,13 @@ ERROR_MAP = {
     'Invalid_PagingLimit': InvalidPagingLimitError,
     'Invalid_PagingStart': InvalidPagingStartError,
     'Max_Size_Reached': MaxSizeReachedError,
-    'MC_SearchException': MCSearchExceptionError
+    'MC_SearchException': MCSearchExceptionError,
+    'Goal_SaveFailed': GoalSaveFailedError,
+    'Conversation_DoesNotExist': ConversationDoesNotExistError,
+    'Conversation_ReplySaveFailed': ConversationReplySaveFailedError,
+    'File_Not_Found_Exception': FileNotFoundExceptionError,
+    'Folder_Not_Found_Exception': FolderNotFoundExceptionError,
+    'Folder_Exists_Exception': FolderExistsExceptionError
 }
 
 logger = logging.getLogger('mailchimp')
@@ -280,6 +297,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler(sys.stderr))
 
 class Mailchimp(object):
+    root = 'https://api.mailchimp.com/2.0/'
     def __init__(self, apikey=None, debug=False):
         '''Initialize the API client
 
@@ -309,14 +327,14 @@ class Mailchimp(object):
         dc = 'us1'
         if apikey.find('-'):
             dc = apikey.split('-')[1]
-        global ROOT
-        ROOT = ROOT.replace('https://api.', 'https://'+dc+'.api.')
+        self.root = self.root.replace('https://api.', 'https://'+dc+'.api.')
 
         self.folders = Folders(self)
         self.templates = Templates(self)
         self.users = Users(self)
         self.helper = Helper(self)
         self.mobile = Mobile(self)
+        self.conversations = Conversations(self)
         self.ecomm = Ecomm(self)
         self.neapolitan = Neapolitan(self)
         self.lists = Lists(self)
@@ -324,15 +342,16 @@ class Mailchimp(object):
         self.vip = Vip(self)
         self.reports = Reports(self)
         self.gallery = Gallery(self)
+        self.goal = Goal(self)
 
     def call(self, url, params=None):
         '''Actually make the API call with the given params - this should only be called by the namespace methods - use the helpers in regular usage like m.helper.ping()'''
         if params is None: params = {}
         params['apikey'] = self.apikey
         params = json.dumps(params)
-        self.log('POST to %s%s.json: %s' % (ROOT, url, params))
+        self.log('POST to %s%s.json: %s' % (self.root, url, params))
         start = time.time()
-        r = self.session.post('%s%s.json' % (ROOT, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.7'})
+        r = self.session.post('%s%s.json' % (self.root, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.8'})
         try:
             remote_addr = r.raw._original_response.fp._sock.getpeername() # grab the remote_addr before grabbing the text since the socket will go away
         except:
@@ -531,12 +550,13 @@ class Templates(object):
            types (struct): optional the types of templates to return::
                types.user (boolean): Custom templates for this user account. Defaults to true.
                types.gallery (boolean): Templates from our Gallery. Note that some templates that require extra configuration are withheld. (eg, the Etsy template). Defaults to false.
-               types.base (boolean): Our "start from scratch" extremely basic templates. Defaults to false.
+               types.base (boolean): Our "start from scratch" extremely basic templates. Defaults to false. As of the 9.0 update, "base" templates are no longer available via the API because they are now all saved Drag & Drop templates.
            filters (struct): optional options to control how inactive templates are returned, if at all::
                filters.category (string): optional for Gallery templates only, limit to a specific template category
                filters.folder_id (string): user templates, limit to this folder_id
                filters.include_inactive (boolean): user templates are not deleted, only set inactive. defaults to false.
                filters.inactive_only (boolean): only include inactive user templates. defaults to false.
+               filters.include_drag_and_drop (boolean): Include templates created and saved using the new Drag & Drop editor. <strong>Note:</strong> You will not be able to edit or create new drag & drop templates via this API. This is useful only for creating a new campaign based on a drag & drop template.
 
         Returns:
            struct.  for each type::
@@ -561,16 +581,7 @@ class Templates(object):
                    gallery.active (boolean): whether or not the template is active and available for use.
                    gallery.edit_source (boolean): Whether or not you are able to edit the source of a template.
 
-               base (array): matching base templates, if requested.::
-                   base.id (int): Id of the template
-                   base.name (string): Name of the template
-                   base.layout (string): General description of the layout of the template
-                   base.category (string): The category for the template, if there is one.
-                   base.preview_image (string): If we've generated it, the url of the preview image for the template. We do out best to keep these up to date, but Preview image urls are not guaranteed to be available
-                   base.active (boolean): whether or not the template is active and available for use.
-                   base.date_created (string): The date/time the template was created
-                   base.edit_source (boolean): Whether or not you are able to edit the source of a template.
-
+               base (array): matching base templates, if requested. (Will always be empty as of 9.0)
 
         Raises:
            ValidationError:
@@ -724,6 +735,8 @@ class Users(object):
                email (string): the email tied to the account used for passwords resets and the ilk
                role (string): the role assigned to the account
                avatar (string): if available, the url for the login's avatar
+               global_user_id (int): the globally unique user id for the user account connected to
+               dc_unique_id (string): the datacenter unique id for the user account connected to, like helper/account-details
 
         Raises:
            ValidationError:
@@ -743,6 +756,9 @@ class Users(object):
                email (string): the email tied to the account used for passwords resets and the ilk
                role (string): the role assigned to the account
                avatar (string): if available, the url for the login's avatar
+               global_user_id (int): the globally unique user id for the user account connected to
+               dc_unique_id (string): the datacenter unique id for the user account connected to, like helper/account-details
+               account_name (string): The name of the account to which the API key belongs
 
         Raises:
            ValidationError:
@@ -765,7 +781,7 @@ contact info, and more. No private information like Credit Card numbers is avail
 
         Returns:
            struct.  containing the details for the account tied to this API Key::
-               username (string): The Account username
+               username (string): The company name associated with the account
                user_id (string): The Account user unique id (for building some links)
                is_trial (bool): Whether the Account is in Trial mode (can only send campaigns to less than 100 emails)
                is_approved (bool): Whether the Account has been approved for purchases
@@ -961,8 +977,8 @@ It's also not just Lynx and is very fine tuned for our template layouts - your m
         Returns:
            array.  An array of structs with info on the  list_id the member is subscribed to.::
                id (string): the list unique id
-               the (web_id): id referenced in web interface urls
-               the (name): list name
+               web_id (int): the id referenced in web interface urls
+               name (string): the list name
 
         Raises:
            ListNotSubscribedError:
@@ -1003,7 +1019,6 @@ string back that will explain our view on what is going on.
                results (array): matching campaigns and snippets
                snippet (string): the matching snippet for the campaign
                campaign (struct): the matching campaign's details - will return same data as single campaign from campaigns/list()
-               summary (struct): if available, the matching campaign's report/summary data, other wise empty
 
         Raises:
            InvalidOptionsError:
@@ -1023,12 +1038,14 @@ string back that will explain our view on what is going on.
 
         Returns:
            struct.  An array of both exact matches and partial matches over a full search::
-               exact_matches (struct): containing the total matches and current results
-               total (int): total members matching
-               members (array): each entry will be struct matching the data format for a single member as returned by lists/member-info()
-               full_search (struct): containing the total matches and current results
-               total (int): total members matching
-               members (array): each entry will be struct matching  the data format for a single member as returned by lists/member-info()
+               exact_matches (struct): containing the exact email address matches and current results::
+                   exact_matches.total (int): total members matching
+                   exact_matches.members (array): each entry will be struct matching the data format for a single member as returned by lists/member-info()
+
+               full_search (struct): containing the total matches and current results::
+                   full_search.total (int): total members matching
+                   full_search.members (array): each entry will be struct matching  the data format for a single member as returned by lists/member-info()
+
 
         Raises:
            InvalidOptionsError:
@@ -1060,6 +1077,104 @@ class Mobile(object):
         self.master = master
 
 
+class Conversations(object):
+    def __init__(self, master):
+        self.master = master
+
+    def list(self, list_id=None, leid=None, campaign_id=None, start=0, limit=25):
+        """Retrieve conversation metadata, includes message data for the most recent message in the conversation
+
+        Args:
+           list_id (string): optional the list id to connect to. Get by calling lists/list()
+           leid (string): optional The member's 'leid', as found by calling lists/member-info()
+           campaign_id (string): the campaign id to get content for (can be gathered using campaigns/list())
+           start (int): optional - control paging, start results at this offset, defaults to 0 (1st page of data)
+           limit (int): optional - control paging, number of results to return with each call, defaults to 25 (max=100)
+
+        Returns:
+           struct.  Conversation data and metadata::
+               count (int): Total number of conversations, irrespective of pagination.
+               data (array): An array of structs representing individual conversations::
+                   data.unique_id (string): A string identifying this particular conversation
+                   data.message_count (int): The total number of messages in this conversation
+                   data.campaign_id (string): The unique identifier of the campaign this conversation is associated with
+                   data.list_id (string): The unique identifier of the list this conversation is associated with
+                   data.unread_messages (int): The number of messages in this conversation which have not yet been read.
+                   data.from_label (string): A label representing the sender of this message.
+                   data.from_email (string): The email address of the sender of this message.
+                   data.subject (string): The subject of the message.
+                   data.timestamp (string): Date the message was either sent or received.
+                   data.last_message (struct): The most recent message in the conversation::
+                       data.last_message.from_label (string): A label representing the sender of this message.
+                       data.last_message.from_email (string): The email address of the sender of this message.
+                       data.last_message.subject (string): The subject of the message.
+                       data.last_message.message (string): The plain-text content of the message.
+                       data.last_message.read (boolean): Whether or not this message has been marked as read.
+                       data.last_message.timestamp (string): Date the message was either sent or received.
+
+
+
+        Raises:
+           ListDoesNotExistError:
+           CampaignNotSavedError:
+           CampaignDoesNotExistError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'list_id': list_id, 'leid': leid, 'campaign_id': campaign_id, 'start': start, 'limit': limit}
+        return self.master.call('conversations/list', _params)
+
+    def messages(self, conversation_id, mark_as_read=False, start=0, limit=25):
+        """Retrieve conversation messages
+
+        Args:
+           conversation_id (string): the unique_id of the conversation to retrieve the messages for, can be obtained by calling converstaions/list().
+           mark_as_read (boolean): optional Whether or not the conversation ought to be marked as read (defaults to false).
+           start (int): optional - control paging, start results at this offset, defaults to 1st page of data (offset 0)
+           limit (int): optional - control paging, number of results to return with each call, defaults to 25 (max=100)
+
+        Returns:
+           struct.  Message data and metadata::
+               count (int): The number of messages in this conversation, irrespective of paging.
+               data (array): An array of structs representing each message in a conversation::
+                   data.from_label (string): A label representing the sender of this message.
+                   data.from_email (string): The email address of the sender of this message.
+                   data.subject (string): The subject of the message.
+                   data.message (string): The plain-text content of the message.
+                   data.read (boolean): Whether or not this message has been marked as read.
+                   data.timestamp (string): Date the message was either sent or received.
+
+
+        Raises:
+           ValidationError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'conversation_id': conversation_id, 'mark_as_read': mark_as_read, 'start': start, 'limit': limit}
+        return self.master.call('conversations/messages', _params)
+
+    def reply(self, conversation_id, message):
+        """Retrieve conversation messages
+
+        Args:
+           conversation_id (string): the unique_id of the conversation to retrieve the messages for, can be obtained by calling converstaions/list().
+           message (string): the text of the message you want to send.
+
+        Returns:
+           struct.  Message data from the created message::
+               from_label (string): A label representing the sender of this message.
+               from_email (string): The email address of the sender of this message.
+               subject (string): The subject of the message.
+               message (string): The plain-text content of the message.
+               read (boolean): Whether or not this message has been marked as read.
+               timestamp (string): Date the message was either sent or received.
+
+        Raises:
+           ValidationError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'conversation_id': conversation_id, 'message': message}
+        return self.master.call('conversations/reply', _params)
+
+
 class Ecomm(object):
     def __init__(self, master):
         self.master = master
@@ -1085,8 +1200,8 @@ class Ecomm(object):
                    order.items.product_id (int): the store's internal Id for the product. Lines that do no contain this will be skipped
                    order.items.sku (string): optional the store's internal SKU for the product. (max 30 bytes)
                    order.items.product_name (string): the product name for the product_id associated with this item. We will auto update these as they change (based on product_id)
-                   order.items.category_id (int): the store's internal Id for the (main) category associated with this product. Our testing has found this to be a "best guess" scenario
-                   order.items.category_name (string): the category name for the category_id this product is in. Our testing has found this to be a "best guess" scenario. Our plugins walk the category heirarchy up and send "Root - SubCat1 - SubCat4", etc.
+                   order.items.category_id (int): (required) the store's internal Id for the (main) category associated with this product. Our testing has found this to be a "best guess" scenario
+                   order.items.category_name (string): (required) the category name for the category_id this product is in. Our testing has found this to be a "best guess" scenario. Our plugins walk the category heirarchy up and send "Root - SubCat1 - SubCat4", etc.
                    order.items.qty (double): optional the quantity of the item ordered - defaults to 1
                    order.items.cost (double): optional the cost of a single item (ie, not the extended cost of the line) - defaults to 0
 
@@ -1294,7 +1409,6 @@ though you should cap them at 5k - 10k records, depending on your experience. Th
            array.  Array of structs containing results and any errors that occurred::
                success_count (int): Number of email addresses that were successfully removed
                error_count (int): Number of email addresses that failed during addition/updating
-               of (array): structs contain error details including:
                errors (array): array of error structs including:::
                    errors.email (string): whatever was passed in the batch record's email parameter::
                        errors.email.email (string): the email address added
@@ -1895,7 +2009,19 @@ unless you're fixing data since you should probably be using default_values and/
 
         Returns:
            struct.  with 2 keys:::
-               static.id (int): the id of the segment
+               static (array): of structs with data for each segment::
+                   static.id (int): the id of the segment
+                   static.name (string): the name for the segment
+                   static.created_date (string): the date+time the segment was created
+                   static.last_update (string): the date+time the segment was last updated (add or del)
+                   static.last_reset (string): the date+time the segment was last reset (ie had all members cleared from it)
+
+               saved (array): of structs with data for each segment::
+                   saved.id (int): the id of the segment
+                   saved.name (string): the name for the segment
+                   saved.segment_opts (string): same match+conditions struct typically used
+                   saved.segment_text (string): a textual description of the segment match/conditions
+
                created_date (string): the date+time the segment was created
                last_update (string): the date+time the segment was last updated (add or del)
 
@@ -1961,10 +2087,7 @@ For the time being, the crazy segmenting condition documentation will continue t
 
         Args:
            list_id (string): the list to test segmentation on - get lists using lists/list()
-           options (struct): with 1 or 2 keys:::
-               options.saved_segment_id (string): a saved segment id from lists/segments() - this will take precendence, otherwise the match+conditions are required.
-               options.match (string): controls whether to use AND or OR when applying your options - expects "<strong>any</strong>" (for OR) or "<strong>all</strong>" (for AND)
-               options.conditions (array): of up to 5 structs for different criteria to apply while segmenting. Each criteria row must contain 3 keys - "<strong>field</strong>", "<strong>op</strong>", and "<strong>value</strong>" - and possibly a fourth, "<strong>extra</strong>", based on these definitions:
+           options (struct): See the campaigns/segment-test() call for details.
 
         Returns:
            struct.  with a single entry:::
@@ -1991,7 +2114,7 @@ For the time being, the crazy segmenting condition documentation will continue t
            opts (struct): various options to update::
                opts.name (string): a unique name per list for the segment - 100 byte maximum length, anything longer will throw an error
                opts.segment_opts (struct): for "saved" only, the standard segment match+conditions, just like campaigns/segment-test::
-                   opts.segment_opts.match (struct): "any" or "all"
+                   opts.segment_opts.match (string): "any" or "all"
                    opts.segment_opts.conditions (array): structs for each condition, just like campaigns/segment-test
 
 
@@ -2139,11 +2262,14 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
         _params = {'id': id, 'seg_id': seg_id}
         return self.master.call('lists/static-segment-reset', _params)
 
-    def static_segments(self, id):
+    def static_segments(self, id, get_counts=True, start=0, limit=None):
         """Retrieve all of the Static Segments for a list.
 
         Args:
            id (string): the list id to connect to. Get by calling lists/list()
+           get_counts (boolean): optional Retreiving counts for static segments can be slow, leaving them out can speed up this call. Defaults to 'true'.
+           start (int): optional - control paging, start results at this offset, defaults to 1st page of data (offset 0)
+           limit (int): optional - control paging, number of results to return with each call, returns all by default
 
         Returns:
            array.  an of structs with data for each static segment::
@@ -2159,7 +2285,7 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
            ListDoesNotExistError:
            Error: A general Mailchimp error has occurred
         """
-        _params = {'id': id}
+        _params = {'id': id, 'get_counts': get_counts, 'start': start, 'limit': limit}
         return self.master.call('lists/static-segments', _params)
 
     def subscribe(self, id, email, merge_vars=None, email_type='html', double_optin=True, update_existing=False, replace_interests=True, send_welcome=False):
@@ -2167,12 +2293,12 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
 
         Args:
            id (string): the list id to connect to. Get by calling lists/list()
-           email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Providing multiples and will use the first we see in this same order.::
+           email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. If multiple keys are provided, the first one from the following list that we find will be used, the rest will be ignored.::
                email.email (string): an email address - for new subscribers obviously this should be used
                email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
-           merge_vars (struct): optional merges for the email (FNAME, LNAME, <a href="http://kb.mailchimp.com/article/where-can-i-find-my-lists-merge-tags target="_blank">etc.</a>) (see examples below for handling "blank" arrays). Note that a merge field can only hold up to 255 bytes. Also, there are a few "special" keys:::
-               merge_vars.new-email (string): set this to change the email address. This is only respected on calls using update_existing or when passed to listUpdateMember().
+           merge_vars (struct): optional merges for the email (FNAME, LNAME, <a href="http://kb.mailchimp.com/article/where-can-i-find-my-lists-merge-tags" target="_blank">etc.</a>) (see examples below for handling "blank" arrays). Note that a merge field can only hold up to 255 bytes. Also, there are a few "special" keys:::
+               merge_vars.new-email (string): set this to change the email address. This is only respected on calls using update_existing or when passed to lists/update.
                merge_vars.groupings (array): of Interest Grouping structs. Each should contain:::
                    merge_vars.groupings.id (int): Grouping "id" from lists/interest-groupings (either this or name must be present) - this id takes precedence and can't change (unlike the name)
                    merge_vars.groupings.name (string): Grouping "name" from lists/interest-groupings (either this or id must be present)
@@ -2217,7 +2343,7 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
 
         Args:
            id (string): the list id to connect to. Get by calling lists/list()
-           email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Providing multiples and will use the first we see in this same order.::
+           email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. If multiple keys are provided, the first one from the following list that we find will be used, the rest will be ignored.::
                email.email (string): an email address
                email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
@@ -2244,7 +2370,7 @@ consider using lists/batch-subscribe() with the update_existing and possible rep
 
         Args:
            id (string): the list id to connect to. Get by calling lists/list()
-           email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Providing multiples and will use the first we see in this same order.::
+           email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. If multiple keys are provided, the first one from the following list that we find will be used, the rest will be ignored.::
                email.email (string): an email address
                email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
@@ -2412,7 +2538,7 @@ consider using lists/batch-subscribe() with the update_existing and possible rep
                errors (array): structs of any errors found while loading lists - usually just from providing invalid list ids::
                    errors.param (string): the data that caused the failure
                    errors.code (int): the error code
-                   errors.error (int): the error message
+                   errors.error (string): the error message
 
 
         Raises:
@@ -2436,7 +2562,7 @@ class Campaigns(object):
            cid (string): the campaign id to get content for (can be gathered using campaigns/list())
            options (struct): various options to control this call::
                options.view (string): optional one of "archive" (default), "preview" (like our popup-preview) or "raw"
-               options.email (struct): optional if provided, view is "archive" or "preview", the campaign's list still exists, and the requested record is subscribed to the list. the returned content will be populated with member data populated. a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Providing multiples and will use the first we see in this same order.::
+               options.email (struct): optional if provided, view is "archive" or "preview", the campaign's list still exists, and the requested record is subscribed to the list. the returned content will be populated with member data populated. a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. If multiple keys are provided, the first one from the following list that we find will be used, the rest will be ignored.::
                    options.email.email (string): an email address
                    options.email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                    options.email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
@@ -2483,7 +2609,7 @@ class Campaigns(object):
                options.analytics (struct): optional - one or more of these keys set to the tag to use - that can be any custom text (up to 50 bytes)::
                    options.analytics.google (string): for Google Analytics  tracking
                    options.analytics.clicktale (string): for ClickTale  tracking
-                   options.analytics.gooal (string): for Goo.al tracking
+                   options.analytics.gooal (string): for Goal tracking (the extra 'o' in the param name is not a typo)
 
                options.auto_footer (boolean): optional Whether or not we should auto-generate the footer for your content. Mostly useful for content from URLs or Imports
                options.inline_css (boolean): optional Whether or not css should be automatically inlined when this campaign is sent, defaults to false.
@@ -2662,9 +2788,10 @@ class Campaigns(object):
                    data.auto_footer (boolean): Whether or not the auto_footer was manually turned on
                    data.timewarp (boolean): Whether or not the campaign used Timewarp
                    data.timewarp_schedule (string): The time, in GMT, that the Timewarp campaign is being sent. For A/B Split campaigns, this is blank and is instead in their schedule_a and schedule_b in the type_opts array
-                   data.parent_id (string): the unique id of the parent campaign (currently only valid for rss children)
+                   data.parent_id (string): the unique id of the parent campaign (currently only valid for rss children). Will be blank for non-rss child campaigns or parent campaign has been deleted.
+                   data.is_child (boolean): true if this is an RSS child campaign. Will return true even if the parent campaign has been deleted.
                    data.tests_sent (string): tests sent
-                   data.tests_remain (string): test sends remaining
+                   data.tests_remain (int): test sends remaining
                    data.tracking (struct): the various tracking options used::
                        data.tracking.html_clicks (boolean): whether or not tracking for html clicks was enabled.
                        data.tracking.text_clicks (boolean): whether or not tracking for text clicks was enabled.
@@ -2673,9 +2800,9 @@ class Campaigns(object):
                    data.segment_text (string): a string marked-up with HTML explaining the segment used for the campaign in plain English
                    data.segment_opts (array): the segment used for the campaign - can be passed to campaigns/segment-test or campaigns/create()
                    data.saved_segment (struct): if a saved segment was used (match+conditions returned above):::
-                       data.saved_segment.id (struct): the saved segment id
-                       data.saved_segment.type (struct): the saved segment type
-                       data.saved_segment.name (struct): the saved segment name
+                       data.saved_segment.id (int): the saved segment id
+                       data.saved_segment.type (string): the saved segment type
+                       data.saved_segment.name (string): the saved segment name
 
                    data.type_opts (struct): the type-specific options for the campaign - can be passed to campaigns/create()
                    data.comments_total (int): total number of comments left on this campaign
@@ -2686,7 +2813,7 @@ class Campaigns(object):
                    errors.filter (string): the filter that caused the failure
                    errors.value (string): the filter value that caused the failure
                    errors.code (int): the error code
-                   errors.error (int): the error message
+                   errors.error (string): the error message
 
 
         Raises:
@@ -2760,7 +2887,7 @@ class Campaigns(object):
         """Resume sending an AutoResponder or RSS campaign
 
         Args:
-           cid (string): the id of the campaign to pause
+           cid (string): the id of the campaign to resume
 
         Returns:
            struct.  with a single entry:::
@@ -2826,7 +2953,7 @@ class Campaigns(object):
         return self.master.call('campaigns/schedule-batch', _params)
 
     def segment_test(self, list_id, options):
-        """Allows one to test their segmentation rules before creating a campaign using them
+        """Allows one to test their segmentation rules before creating a campaign using them.
 
         Args:
            list_id (string): the list to test segmentation on - get lists using lists/list()
@@ -3192,7 +3319,7 @@ Messages over 30 days old are subject to being removed
 
         Args:
            cid (string): the campaign id to pull bounces for (can be gathered using campaigns/list())
-           email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. Providing multiples and will use the first we see in this same order.::
+           email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. If multiple keys are provided, the first one from the following list that we find will be used, the rest will be ignored.::
                email.email (string): an email address - this is recommended for this method
                email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
@@ -3331,24 +3458,25 @@ messages over 30 days old are subject to being removed
         Returns:
            struct.  the total matching orders and the specific orders for the requested page::
                total (int): the total matching orders
-               data (array): structs for the actual data for each order being returned
-               store_id (string): the store id generated by the plugin used to uniquely identify a store
-               store_name (string): the store name collected by the plugin - often the domain name
-               order_id (string): the internal order id the store tracked this order by
-               member (struct): the member record as returned by lists/member-info() that received this campaign and is associated with this order
-               order_total (double): the order total
-               tax_total (double): the total tax for the order (if collected)
-               ship_total (double): the shipping total for the order (if collected)
-               order_date (string): the date the order was tracked - from the store if possible, otherwise the GMT time we received it
-               lines (array): structs containing details of the order:::
-                   lines.line_num (int): the line number assigned to this line
-                   lines.product_id (int): the product id assigned to this item
-                   lines.product_name (string): the product name
-                   lines.product_sku (string): the sku for the product
-                   lines.product_category_id (int): the id for the product category
-                   lines.product_category_name (string): the product category name
-                   lines.qty (double): optional the quantity of the item ordered - defaults to 1
-                   lines.cost (double): optional the cost of a single item (ie, not the extended cost of the line) - defaults to 0
+               data (array): structs for the actual data for each order being returned::
+                   data.store_id (string): the store id generated by the plugin used to uniquely identify a store
+                   data.store_name (string): the store name collected by the plugin - often the domain name
+                   data.order_id (string): the internal order id the store tracked this order by
+                   data.member (struct): the member record as returned by lists/member-info() that received this campaign and is associated with this order
+                   data.order_total (double): the order total
+                   data.tax_total (double): the total tax for the order (if collected)
+                   data.ship_total (double): the shipping total for the order (if collected)
+                   data.order_date (string): the date the order was tracked - from the store if possible, otherwise the GMT time we received it
+                   data.lines (array): structs containing details of the order:::
+                       data.lines.line_num (int): the line number assigned to this line
+                       data.lines.product_id (int): the product id assigned to this item
+                       data.lines.product_name (string): the product name
+                       data.lines.product_sku (string): the sku for the product
+                       data.lines.product_category_id (int): the id for the product category
+                       data.lines.product_category_name (string): the product category name
+                       data.lines.qty (double): optional the quantity of the item ordered - defaults to 1
+                       data.lines.cost (double): optional the cost of a single item (ie, not the extended cost of the line) - defaults to 0
+
 
 
         Raises:
@@ -3783,11 +3911,13 @@ class Gallery(object):
                opts.sort_by (string): optional field to sort by - one of size, time, name - defaults to time
                opts.sort_dir (string): optional field to sort by - one of asc, desc - defaults to desc
                opts.search_term (string): optional a term to search for in names
+               opts.folder_id (int): optional to return files that are in a specific folder.  id returned by the list-folders call
 
         Returns:
            struct.  the matching gallery items::
                total (int): the total matching items
                data (array): structs for each item included in the set, including:::
+                   data.id (int): the id of the file
                    data.name (string): the file name
                    data.time (string): the creation date for the item
                    data.size (int): the file size in bytes
@@ -3801,6 +3931,175 @@ class Gallery(object):
         """
         _params = {'opts': opts}
         return self.master.call('gallery/list', _params)
+
+    def list_folders(self, opts=[]):
+        """Return a list of the folders available to the file gallery
+
+        Args:
+           opts (struct): various options for controlling returned data::
+               opts.start (int): optional for large data sets, the page number to start at - defaults to 1st page of data  (page 0)
+               opts.limit (int): optional for large data sets, the number of results to return - defaults to 25, upper limit set at 100
+               opts.search_term (string): optional a term to search for in names
+
+        Returns:
+           struct.  the matching gallery folders::
+               total (int): the total matching folders
+               data (array): structs for each folder included in the set, including:::
+                   data.id (int): the id of the folder
+                   data.name (string): the file name
+                   data.file_count (int): the number of files in the folder
+
+
+        Raises:
+           ValidationError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'opts': opts}
+        return self.master.call('gallery/list-folders', _params)
+
+    def add_folder(self, name):
+        """Adds a folder to the file gallery
+
+        Args:
+           name (string): the name of the folder to add (255 character max)
+
+        Returns:
+           struct.  the new data for the created folder::
+               data.id (int): the id of the new folder
+
+        Raises:
+           ValidationError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'name': name}
+        return self.master.call('gallery/add-folder', _params)
+
+    def remove_folder(self, folder_id):
+        """Remove a folder
+
+        Args:
+           folder_id (int): the id of the folder to remove, as returned by the listFolders call
+
+        Returns:
+           boolean.  true/false for success/failure
+
+        Raises:
+           ValidationError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'folder_id': folder_id}
+        return self.master.call('gallery/remove-folder', _params)
+
+    def add_file_to_folder(self, file_id, folder_id):
+        """Add a file to a folder
+
+        Args:
+           file_id (int): the id of the file you want to add to a folder, as returned by the list call
+           folder_id (int): the id of the folder to add the file to, as returned by the listFolders call
+
+        Returns:
+           boolean.  true/false for success/failure
+
+        Raises:
+           ValidationError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'file_id': file_id, 'folder_id': folder_id}
+        return self.master.call('gallery/add-file-to-folder', _params)
+
+    def remove_file_from_folder(self, file_id, folder_id):
+        """Remove a file from a folder
+
+        Args:
+           file_id (int): the id of the file you want to remove from the folder, as returned by the list call
+           folder_id (int): the id of the folder to remove the file from, as returned by the listFolders call
+
+        Returns:
+           boolean.  true/false for success/failure
+
+        Raises:
+           ValidationError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'file_id': file_id, 'folder_id': folder_id}
+        return self.master.call('gallery/remove-file-from-folder', _params)
+
+    def remove_all_files_from_folder(self, folder_id):
+        """Remove all files from a folder (Note that the files are not deleted, they are only removed from the folder)
+
+        Args:
+           folder_id (int): the id of the folder to remove the file from, as returned by the listFolders call
+
+        Returns:
+           boolean.  true/false for success/failure
+
+        Raises:
+           ValidationError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'folder_id': folder_id}
+        return self.master.call('gallery/remove-all-files-from-folder', _params)
+
+
+class Goal(object):
+    def __init__(self, master):
+        self.master = master
+
+    def events(self, list_id, email, start=0, limit=25):
+        """Retrieve goal event data for a particular list member. Note: only unique events are returned. If a user triggers
+a particular event multiple times, you will still only receive one entry for that event.
+
+        Args:
+           list_id (string): the list id to connect to. Get by calling lists/list()
+           email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. If multiple keys are provided, the first one from the following list that we find will be used, the rest will be ignored.::
+               email.email (string): an email address
+               email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
+               email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
+           start (int): optional - control paging of lists, start results at this list #, defaults to 1st page of data  (page 0)
+           limit (int): optional - control paging of lists, number of lists to return with each call, defaults to 25 (max=100)
+
+        Returns:
+           struct.  Event data and metadata::
+               data (array): An array of goal data structs for the specified list member in the following format::
+                   data.event (string): The URL or name of the event that was triggered
+                   data.last_visited_at (string): A timestamp in the format 'YYYY-MM-DD HH:MM:SS' that represents the last time this event was seen.
+
+               total (int): The total number of events that match your criteria.
+
+        Raises:
+           ListDoesNotExistError:
+           EmailNotExistsError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'list_id': list_id, 'email': email, 'start': start, 'limit': limit}
+        return self.master.call('goal/events', _params)
+
+    def record_event(self, list_id, email, campaign_id, event):
+        """This allows programmatically trigger goal event collection without the use of front-end code.
+
+        Args:
+           list_id (string): the list id to connect to. Get by calling lists/list()
+           email (struct): a struct with one of the following keys - failing to provide anything will produce an error relating to the email address. If multiple keys are provided, the first one from the following list that we find will be used, the rest will be ignored.::
+               email.email (string): an email address
+               email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
+               email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
+           campaign_id (string): the campaign id to get content for (can be gathered using campaigns/list())
+           event (string): The name of the event or the URL visited
+
+        Returns:
+           struct.  Event data for the submitted event::
+               event (string): The URL or name of the event that was triggered
+               last_visited_at (string): A timestamp in the format 'YYYY-MM-DD HH:MM:SS' that represents the last time this event was seen.
+
+        Raises:
+           CampaignNotSavedError:
+           CampaignDoesNotExistError:
+           ListDoesNotExistError:
+           EmailNotExistsError:
+           Error: A general Mailchimp error has occurred
+        """
+        _params = {'list_id': list_id, 'email': email, 'campaign_id': campaign_id, 'event': event}
+        return self.master.call('goal/record-event', _params)
 
 
 
