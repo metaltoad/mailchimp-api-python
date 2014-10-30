@@ -351,7 +351,7 @@ class Mailchimp(object):
         params = json.dumps(params)
         self.log('POST to %s%s.json: %s' % (self.root, url, params))
         start = time.time()
-        r = self.session.post('%s%s.json' % (self.root, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.8'})
+        r = self.session.post('%s%s.json' % (self.root, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.9'})
         try:
             remote_addr = r.raw._original_response.fp._sock.getpeername() # grab the remote_addr before grabbing the text since the socket will go away
         except:
@@ -1097,7 +1097,7 @@ class Conversations(object):
                data (array): An array of structs representing individual conversations::
                    data.unique_id (string): A string identifying this particular conversation
                    data.message_count (int): The total number of messages in this conversation
-                   data.campaign_id (string): The unique identifier of the campaign this conversation is associated with
+                   data.campaign_id (string): The unique identifier of the campaign this conversation is associated with (will be null if the campaign has been deleted)
                    data.list_id (string): The unique identifier of the list this conversation is associated with
                    data.unread_messages (int): The number of messages in this conversation which have not yet been read.
                    data.from_label (string): A label representing the sender of this message.
@@ -1152,7 +1152,7 @@ class Conversations(object):
         return self.master.call('conversations/messages', _params)
 
     def reply(self, conversation_id, message):
-        """Retrieve conversation messages
+        """Reply to a conversation
 
         Args:
            conversation_id (string): the unique_id of the conversation to retrieve the messages for, can be obtained by calling converstaions/list().
@@ -1199,7 +1199,7 @@ class Ecomm(object):
                    order.items.line_num (int): optional the line number of the item on the order. We will generate these if they are not passed
                    order.items.product_id (int): the store's internal Id for the product. Lines that do no contain this will be skipped
                    order.items.sku (string): optional the store's internal SKU for the product. (max 30 bytes)
-                   order.items.product_name (string): the product name for the product_id associated with this item. We will auto update these as they change (based on product_id)
+                   order.items.product_name (string): the product name for the product_id associated with this item. We will auto update these as they change (based on product_id) (max 500 bytes)
                    order.items.category_id (int): (required) the store's internal Id for the (main) category associated with this product. Our testing has found this to be a "best guess" scenario
                    order.items.category_name (string): (required) the category name for the category_id this product is in. Our testing has found this to be a "best guess" scenario. Our plugins walk the category heirarchy up and send "Root - SubCat1 - SubCat4", etc.
                    order.items.qty (double): optional the quantity of the item ordered - defaults to 1
@@ -2178,14 +2178,15 @@ in order to be included - this <strong>will not</strong> subscribe them to the l
         Args:
            id (string): the list id to connect to. Get by calling lists/list()
            seg_id (int): the id of the static segment to modify - get from lists/static-segments()
-           batch (array): an array of structs for   each address using the following keys:::
+           batch (array): an array of email structs, each with with one of the following keys:::
                batch.email (string): an email address
-               batch.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
+               batch.euid (string): the unique id for an email address (not list related) - the email "id" returned from lists/member-info(), Webhooks, Campaigns, etc.
                batch.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
 
         Returns:
            struct.  an array with the results of the operation::
                success_count (int): the total number of successful updates (will include members already in the segment)
+               error_count (int): the total number of errors
                errors (array): structs for each error including:::
                    errors.email (string): whatever was passed in the email parameter::
                        errors.email.email (string): the email address added
@@ -2358,7 +2359,7 @@ in order to be removed - this <strong>will not</strong> unsubscribe them from th
         Raises:
            ListDoesNotExistError:
            EmailNotExistsError:
-           ListAlreadySubscribedError:
+           ListNotSubscribedError:
            Error: A general Mailchimp error has occurred
         """
         _params = {'id': id, 'email': email, 'delete_member': delete_member, 'send_goodbye': send_goodbye, 'send_notify': send_notify}
@@ -2374,7 +2375,7 @@ consider using lists/batch-subscribe() with the update_existing and possible rep
                email.email (string): an email address
                email.euid (string): the unique id for an email address (not list related) - the email "id" returned from listMemberInfo, Webhooks, Campaigns, etc.
                email.leid (string): the list email id (previously called web_id) for a list-member-info type call. this doesn't change when the email address changes
-           merge_vars (array): array of new field values to update the member with.  See merge_vars in lists/subscribe() for details.
+           merge_vars (struct): new field values to update the member with.  See merge_vars in lists/subscribe() for details.
            email_type (string): change the email type preference for the member ("html" or "text").  Leave blank to keep the existing preference (optional)
            replace_interests (boolean): flag to determine whether we replace the interest groups with the updated groups provided, or we add the provided groups to the member's interest groups (optional, defaults to true)
 
@@ -2491,7 +2492,7 @@ consider using lists/batch-subscribe() with the update_existing and possible rep
                filters.from_subject (string): optional - only lists that have a default from email matching this
                filters.created_before (string): optional - only show lists that were created before this date+time  - 24 hour format in <strong>GMT</strong>, eg "2013-12-30 20:30:00"
                filters.created_after (string): optional - only show lists that were created since this date+time  - 24 hour format in <strong>GMT</strong>, eg "2013-12-30 20:30:00"
-               filters.exact (boolean): optional - flag for whether to filter on exact values when filtering, or search within content for filter values - defaults to true
+               filters.exact (boolean): optional - flag for whether to filter on exact values when filtering, or search within content for filter values - defaults to false
            start (int): optional - control paging of lists, start results at this list #, defaults to 1st page of data  (page 0)
            limit (int): optional - control paging of lists, number of lists to return with each call, defaults to 25 (max=100)
            sort_field (string): optional - "created" (the created date, default) or "web" (the display order in the web app). Invalid values will fall back on "created" - case insensitive.
@@ -2619,7 +2620,7 @@ class Campaigns(object):
                options.fb_comments (boolean): optional If true, the Facebook comments (and thus the <a href="http://kb.mailchimp.com/article/i-dont-want-an-archiave-of-my-campaign-can-i-turn-it-off/" target="_blank">archive bar</a> will be displayed. If false, Facebook comments will not be enabled (does not imply no archive bar, see previous link). Defaults to "true".
                options.timewarp (boolean): optional If set, this campaign must be scheduled 24 hours in advance of sending - default to false. Only valid for "regular" campaigns and "absplit" campaigns that split on schedule_time.
                options.ecomm360 (boolean): optional If set, our <a href="http://www.mailchimp.com/blog/ecommerce-tracking-plugin/" target="_blank">Ecommerce360 tracking</a> will be enabled for links in the campaign
-               options.crm_tracking (array): optional If set, an array of structs to enable CRM tracking for:::
+               options.crm_tracking (struct): optional If set, a struct to enable CRM tracking for:::
                    options.crm_tracking.salesforce (struct): optional Enable SalesForce push back::
                        options.crm_tracking.salesforce.campaign (bool): optional - if true, create a Campaign object and update it with aggregate stats
                        options.crm_tracking.salesforce.notes (bool): optional - if true, attempt to update Contact notes based on email address
@@ -2808,6 +2809,12 @@ class Campaigns(object):
                    data.comments_total (int): total number of comments left on this campaign
                    data.comments_unread (int): total number of unread comments for this campaign based on the login the apikey belongs to
                    data.summary (struct): if available, the basic aggregate stats returned by reports/summary
+                   data.social_card (struct): If a social card has been attached to this campaign:::
+                       data.social_card.title (string): The title of the campaign used with the card
+                       data.social_card.description (string): The description used with the card
+                       data.social_card.image_url (string): The URL of the image used with the card
+                       data.social_card.enabled (string): Whether or not the social card is enabled for this campaign.
+
 
                errors (array): structs of any errors found while loading lists - usually just from providing invalid list ids::
                    errors.filter (string): the filter that caused the failure
@@ -3847,7 +3854,7 @@ or campaignEmailStatsAIMAll() and generate any additional stats they require.
                    timewarp.unique_opens (int): the unique opens for this timezone
                    timewarp.clicks (int): the total clicks for this timezone
                    timewarp.last_click (string): the date/time of the last click for this timezone
-                   timewarp.unique_opens (int): the unique clicks for this timezone
+                   timewarp.unique_clicks (int): the unique clicks for this timezone
                    timewarp.bounces (int): the total bounces for this timezone
                    timewarp.total (int): the total number of members sent to in this timezone
                    timewarp.sent (int): the total number of members delivered to in this timezone
