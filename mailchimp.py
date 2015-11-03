@@ -298,7 +298,7 @@ logger.addHandler(logging.StreamHandler(sys.stderr))
 
 class Mailchimp(object):
     root = 'https://api.mailchimp.com/2.0/'
-    def __init__(self, apikey=None, debug=False):
+    def __init__(self, apikey=None, debug=False, proxies={}):
         '''Initialize the API client
 
         Args:
@@ -343,6 +343,7 @@ class Mailchimp(object):
         self.reports = Reports(self)
         self.gallery = Gallery(self)
         self.goal = Goal(self)
+        self.proxies= proxies
 
     def call(self, url, params=None):
         '''Actually make the API call with the given params - this should only be called by the namespace methods - use the helpers in regular usage like m.helper.ping()'''
@@ -351,7 +352,7 @@ class Mailchimp(object):
         params = json.dumps(params)
         self.log('POST to %s%s.json: %s' % (self.root, url, params))
         start = time.time()
-        r = self.session.post('%s%s.json' % (self.root, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.9'})
+        r = self.session.post('%s%s.json' % (self.root, url), data=params, headers={'content-type': 'application/json', 'user-agent': 'MailChimp-Python/2.0.9'}, proxies=self.proxies)
         try:
             remote_addr = r.raw._original_response.fp._sock.getpeername() # grab the remote_addr before grabbing the text since the socket will go away
         except:
